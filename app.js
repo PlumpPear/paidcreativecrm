@@ -168,6 +168,9 @@
         .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
 
       countEl.textContent = stageDeals.length;
+      const totalEl = document.querySelector(`[data-total="${stage}"]`);
+      const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+      totalEl.textContent = formatCurrency(stageTotal);
       body.innerHTML = '';
 
       stageDeals.forEach(deal => {

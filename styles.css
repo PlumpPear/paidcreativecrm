@@ -452,6 +452,13 @@ body {
   font-weight: 600;
 }
 
+.column-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0 16px 6px;
+}
+
 .column-body {
   padding: 8px;
   flex: 1;
