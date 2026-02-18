@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paid Creative CRM</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <h1>PaidCreative</h1>
+      <span class="subtitle">CRM</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#" class="nav-link active" data-view="pipeline">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Pipeline
+      </a></li>
+      <li><a href="#" class="nav-link" data-view="contacts">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Contacts
+      </a></li>
+      <li><a href="#" class="nav-link" data-view="dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Dashboard
+      </a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="mrr-mini">
+        <span class="mrr-label">Current MRR</span>
+        <span class="mrr-value" id="sidebar-mrr">$0</span>
+        <div class="mrr-mini-bar">
+          <div class="mrr-mini-fill" id="sidebar-mrr-fill"></div>
+        </div>
+        <span class="mrr-goal-label">Goal: $83,000</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <!-- Pipeline View -->
+    <section id="view-pipeline" class="view active">
+      <div class="view-header">
+        <h2>Sales Pipeline</h2>
+        <button class="btn btn-primary" id="btn-add-deal">+ New Deal</button>
+      </div>
+      <div class="pipeline-board" id="pipeline-board">
+        <div class="pipeline-column" data-stage="discovery">
+          <div class="column-header">
+            <span class="stage-dot" style="background:#6366f1"></span>
+            <h3>Discovery</h3>
+            <span class="deal-count" data-count="discovery">0</span>
+          </div>
+          <div class="column-body" data-stage="discovery"></div>
+        </div>
+        <div class="pipeline-column" data-stage="qualification">
+          <div class="column-header">
+            <span class="stage-dot" style="background:#8b5cf6"></span>
+            <h3>Qualification</h3>
+            <span class="deal-count" data-count="qualification">0</span>
+          </div>
+          <div class="column-body" data-stage="qualification"></div>
+        </div>
+        <div class="pipeline-column" data-stage="proposal">
+          <div class="column-header">
+            <span class="stage-dot" style="background:#ec4899"></span>
+            <h3>Proposal</h3>
+            <span class="deal-count" data-count="proposal">0</span>
+          </div>
+          <div class="column-body" data-stage="proposal"></div>
+        </div>
+        <div class="pipeline-column" data-stage="negotiation">
+          <div class="column-header">
+            <span class="stage-dot" style="background:#f59e0b"></span>
+            <h3>Negotiation</h3>
+            <span class="deal-count" data-count="negotiation">0</span>
+          </div>
+          <div class="column-body" data-stage="negotiation"></div>
+        </div>
+        <div class="pipeline-column" data-stage="closed_won">
+          <div class="column-header">
+            <span class="stage-dot" style="background:#10b981"></span>
+            <h3>Closed Won</h3>
+            <span class="deal-count" data-count="closed_won">0</span>
+          </div>
+          <div class="column-body" data-stage="closed_won"></div>
+        </div>
+        <div class="pipeline-column" data-stage="closed_lost">
+          <div class="column-header">
+            <span class="stage-dot" style="background:#ef4444"></span>
+            <h3>Closed Lost</h3>
+            <span class="deal-count" data-count="closed_lost">0</span>
+          </div>
+          <div class="column-body" data-stage="closed_lost"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contacts View -->
+    <section id="view-contacts" class="view">
+      <div class="view-header">
+        <h2>Contacts</h2>
+        <div class="header-actions">
+          <input type="text" class="search-input" id="contact-search" placeholder="Search contacts...">
+          <button class="btn btn-primary" id="btn-add-contact">+ New Contact</button>
+        </div>
+      </div>
+      <div class="contacts-layout">
+        <div class="contacts-list" id="contacts-list"></div>
+        <div class="contact-detail" id="contact-detail">
+          <div class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <p>Select a contact to view details</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard View -->
+    <section id="view-dashboard" class="view">
+      <div class="view-header">
+        <h2>Dashboard</h2>
+      </div>
+      <div class="dashboard-grid">
+        <div class="dash-card goal-card">
+          <h3>MRR Goal Tracker</h3>
+          <div class="goal-display">
+            <div class="goal-amount">
+              <span class="current-mrr" id="dash-current-mrr">$0</span>
+              <span class="goal-divider">/</span>
+              <span class="target-mrr">$83,000</span>
+            </div>
+            <div class="goal-progress-ring" id="goal-ring">
+              <svg viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="85" fill="none" stroke="#1e293b" stroke-width="12"/>
+                <circle cx="100" cy="100" r="85" fill="none" stroke="url(#goalGradient)" stroke-width="12" stroke-linecap="round" id="goal-circle" stroke-dasharray="534" stroke-dashoffset="534" transform="rotate(-90 100 100)"/>
+                <defs>
+                  <linearGradient id="goalGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#6366f1"/>
+                    <stop offset="100%" style="stop-color:#10b981"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="goal-percent" id="goal-percent">0%</div>
+            </div>
+          </div>
+          <div class="goal-remaining" id="goal-remaining">$83,000 remaining to reach goal</div>
+        </div>
+
+        <div class="dash-card">
+          <h3>Pipeline Summary</h3>
+          <div class="summary-stats" id="pipeline-summary"></div>
+        </div>
+
+        <div class="dash-card chart-card">
+          <h3>Monthly Recurring Revenue</h3>
+          <canvas id="mrr-chart"></canvas>
+        </div>
+
+        <div class="dash-card chart-card">
+          <h3>Deals by Stage</h3>
+          <canvas id="stage-chart"></canvas>
+        </div>
+
+        <div class="dash-card">
+          <h3>Recent Activity</h3>
+          <div class="activity-feed" id="activity-feed"></div>
+        </div>
+
+        <div class="dash-card">
+          <h3>Top Deals</h3>
+          <div class="top-deals" id="top-deals"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Deal Modal -->
+  <div class="modal-overlay" id="deal-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="deal-modal-title">New Deal</h3>
+        <button class="modal-close" id="deal-modal-close">&times;</button>
+      </div>
+      <form id="deal-form">
+        <input type="hidden" id="deal-id">
+        <div class="form-group">
+          <label for="deal-name">Deal Name *</label>
+          <input type="text" id="deal-name" required placeholder="e.g. Acme Corp - Social Media Package">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="deal-value">Monthly Value ($) *</label>
+            <input type="number" id="deal-value" required min="0" step="100" placeholder="5000">
+          </div>
+          <div class="form-group">
+            <label for="deal-stage">Stage</label>
+            <select id="deal-stage">
+              <option value="discovery">Discovery</option>
+              <option value="qualification">Qualification</option>
+              <option value="proposal">Proposal</option>
+              <option value="negotiation">Negotiation</option>
+              <option value="closed_won">Closed Won</option>
+              <option value="closed_lost">Closed Lost</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="deal-contact">Contact</label>
+          <select id="deal-contact">
+            <option value="">-- Select Contact --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="deal-notes">Notes</label>
+          <textarea id="deal-notes" rows="3" placeholder="Add deal notes..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="deal-cancel">Cancel</button>
+          <button type="button" class="btn btn-danger" id="deal-delete" style="display:none">Delete</button>
+          <button type="submit" class="btn btn-primary">Save Deal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Contact Modal -->
+  <div class="modal-overlay" id="contact-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="contact-modal-title">New Contact</h3>
+        <button class="modal-close" id="contact-modal-close">&times;</button>
+      </div>
+      <form id="contact-form">
+        <input type="hidden" id="contact-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contact-first">First Name *</label>
+            <input type="text" id="contact-first" required placeholder="John">
+          </div>
+          <div class="form-group">
+            <label for="contact-last">Last Name *</label>
+            <input type="text" id="contact-last" required placeholder="Doe">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="contact-company">Company</label>
+          <input type="text" id="contact-company" placeholder="Acme Corp">
+        </div>
+        <div class="form-group">
+          <label for="contact-email">Email</label>
+          <input type="email" id="contact-email" placeholder="john@acmecorp.com">
+        </div>
+        <div class="form-group">
+          <label for="contact-phone">Phone</label>
+          <input type="text" id="contact-phone" placeholder="(555) 123-4567">
+        </div>
+        <div class="form-group">
+          <label for="contact-title">Job Title</label>
+          <input type="text" id="contact-title" placeholder="Marketing Director">
+        </div>
+        <div class="form-group">
+          <label for="contact-notes">Notes</label>
+          <textarea id="contact-notes" rows="3" placeholder="Add notes about this contact..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="contact-cancel">Cancel</button>
+          <button type="button" class="btn btn-danger" id="contact-delete" style="display:none">Delete</button>
+          <button type="submit" class="btn btn-primary">Save Contact</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
