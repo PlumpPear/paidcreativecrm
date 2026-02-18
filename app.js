@@ -164,7 +164,8 @@
     STAGES.forEach(stage => {
       const body = document.querySelector(`.column-body[data-stage="${stage}"]`);
       const countEl = document.querySelector(`[data-count="${stage}"]`);
-      const stageDeals = deals.filter(d => d.stage === stage);
+      const stageDeals = deals.filter(d => d.stage === stage)
+        .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
 
       countEl.textContent = stageDeals.length;
       body.innerHTML = '';
@@ -216,6 +217,23 @@
   function handleDragEnd(e) {
     e.target.classList.remove('dragging');
     document.querySelectorAll('.column-body').forEach(col => col.classList.remove('drag-over'));
+    document.querySelectorAll('.deal-card').forEach(c => c.classList.remove('drag-insert-before', 'drag-insert-after'));
+  }
+
+  function getDragAfterElement(column, y) {
+    const cards = [...column.querySelectorAll('.deal-card:not(.dragging)')];
+    return cards.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset, element: child };
+      }
+      return closest;
+    }, { offset: -Infinity }).element;
+  }
+
+  function clearDropIndicators() {
+    document.querySelectorAll('.deal-card').forEach(c => c.classList.remove('drag-insert-before', 'drag-insert-after'));
   }
 
   function initDragDrop() {
@@ -224,33 +242,78 @@
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         col.classList.add('drag-over');
+
+        clearDropIndicators();
+        const afterElement = getDragAfterElement(col, e.clientY);
+        if (afterElement) {
+          afterElement.classList.add('drag-insert-before');
+        } else {
+          const cards = [...col.querySelectorAll('.deal-card:not(.dragging)')];
+          if (cards.length > 0) {
+            cards[cards.length - 1].classList.add('drag-insert-after');
+          }
+        }
       });
 
-      col.addEventListener('dragleave', () => {
-        col.classList.remove('drag-over');
+      col.addEventListener('dragleave', (e) => {
+        if (!col.contains(e.relatedTarget)) {
+          col.classList.remove('drag-over');
+          clearDropIndicators();
+        }
       });
 
       col.addEventListener('drop', (e) => {
         e.preventDefault();
         col.classList.remove('drag-over');
+        clearDropIndicators();
         if (!draggedDealId) return;
 
         const newStage = col.dataset.stage;
         const deals = Store.getDeals();
         const deal = deals.find(d => d.id === draggedDealId);
+        if (!deal) { draggedDealId = null; return; }
 
-        if (deal && deal.stage !== newStage) {
-          const oldStage = deal.stage;
-          deal.stage = newStage;
-          deal.updatedAt = new Date().toISOString();
-          Store.saveDeals(deals);
+        const oldStage = deal.stage;
+        const stageChanged = deal.stage !== newStage;
+        deal.stage = newStage;
+        deal.updatedAt = new Date().toISOString();
+
+        // Determine insertion index based on drop position
+        const afterElement = getDragAfterElement(col, e.clientY);
+        const sameStageDeals = deals
+          .filter(d => d.stage === newStage && d.id !== deal.id)
+          .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+
+        let insertIndex;
+        if (afterElement) {
+          insertIndex = sameStageDeals.findIndex(d => d.id === afterElement.dataset.dealId);
+          if (insertIndex === -1) insertIndex = sameStageDeals.length;
+        } else {
+          insertIndex = sameStageDeals.length;
+        }
+
+        // Insert deal at the right position and reassign sortOrder
+        sameStageDeals.splice(insertIndex, 0, deal);
+        sameStageDeals.forEach((d, i) => { d.sortOrder = i; });
+
+        // Reorder the old column too if stage changed
+        if (stageChanged) {
+          deals.filter(d => d.stage === oldStage)
+            .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
+            .forEach((d, i) => { d.sortOrder = i; });
+        }
+
+        Store.saveDeals(deals);
+
+        if (stageChanged) {
           Store.addActivity(
             `<strong>${deal.name}</strong> moved from ${STAGE_LABELS[oldStage]} to ${STAGE_LABELS[newStage]}`,
             STAGE_COLORS[newStage]
           );
           Store.updateMrrHistory();
-          renderPipeline();
         }
+
+        renderPipeline();
         draggedDealId = null;
       });
     });

@@ -464,6 +464,14 @@ body {
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
+.deal-card.drag-insert-before {
+  box-shadow: 0 -2px 0 0 var(--accent-indigo);
+}
+
+.deal-card.drag-insert-after {
+  box-shadow: 0 2px 0 0 var(--accent-indigo);
+}
+
 /* ===== Deal Cards ===== */
 .deal-card {
   background: var(--bg-primary);
