@@ -13,12 +13,12 @@
   // 4. Copy the firebaseConfig object and paste it below
   // 5. Go to Firestore Database → Create database → Start in test mode
   const firebaseConfig = {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyDgt1GnnX0Uchtohg4yW_0iqBnSOmw9Er0",
+    authDomain: "paidcreativecrm.firebaseapp.com",
+    projectId: "paidcreativecrm",
+    storageBucket: "paidcreativecrm.firebasestorage.app",
+    messagingSenderId: "749896697894",
+    appId: "1:749896697894:web:ba294f43d7732b50eb7ee7"
   };
 
   let db = null;
