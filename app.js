@@ -249,6 +249,40 @@
   }
 
   // ===== Deal Modal =====
+  function resetDealNewContactFields() {
+    const fields = document.getElementById('deal-new-contact-fields');
+    fields.style.display = 'none';
+    document.getElementById('deal-contact-first').value = '';
+    document.getElementById('deal-contact-last').value = '';
+    document.getElementById('deal-contact-email').value = '';
+    document.getElementById('deal-contact-company').value = '';
+    document.getElementById('deal-contact-first').removeAttribute('required');
+    document.getElementById('deal-contact-last').removeAttribute('required');
+    const toggleBtn = document.getElementById('deal-new-contact-toggle');
+    toggleBtn.textContent = '+ New';
+    document.getElementById('deal-contact').disabled = false;
+  }
+
+  function toggleDealNewContact() {
+    const fields = document.getElementById('deal-new-contact-fields');
+    const contactSelect = document.getElementById('deal-contact');
+    const toggleBtn = document.getElementById('deal-new-contact-toggle');
+    const isShowing = fields.style.display !== 'none';
+
+    if (isShowing) {
+      // Collapse: switch back to dropdown
+      resetDealNewContactFields();
+    } else {
+      // Expand: show inline fields, disable dropdown
+      fields.style.display = '';
+      contactSelect.value = '';
+      contactSelect.disabled = true;
+      toggleBtn.textContent = 'Cancel';
+      document.getElementById('deal-contact-first').setAttribute('required', '');
+      document.getElementById('deal-contact-last').setAttribute('required', '');
+    }
+  }
+
   function openDealModal(dealId) {
     const modal = document.getElementById('deal-modal');
     const form = document.getElementById('deal-form');
@@ -262,6 +296,9 @@
     contacts.forEach(c => {
       contactSelect.innerHTML += `<option value="${c.id}">${escapeHtml(c.firstName + ' ' + c.lastName)}${c.company ? ' (' + escapeHtml(c.company) + ')' : ''}</option>`;
     });
+
+    // Reset inline new-contact fields
+    resetDealNewContactFields();
 
     if (dealId) {
       const deals = Store.getDeals();
@@ -294,11 +331,40 @@
     e.preventDefault();
     const id = document.getElementById('deal-id').value;
     const deals = Store.getDeals();
+
+    // If inline new-contact fields are visible, create the contact first
+    let contactId = document.getElementById('deal-contact').value || null;
+    const newContactFields = document.getElementById('deal-new-contact-fields');
+    if (newContactFields.style.display !== 'none') {
+      const firstName = document.getElementById('deal-contact-first').value.trim();
+      const lastName = document.getElementById('deal-contact-last').value.trim();
+      if (!firstName || !lastName) return; // form validation should catch this
+
+      const newContact = {
+        id: generateId(),
+        firstName,
+        lastName,
+        email: document.getElementById('deal-contact-email').value.trim(),
+        company: document.getElementById('deal-contact-company').value.trim(),
+        phone: '',
+        title: '',
+        notes: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      const contacts = Store.getContacts();
+      contacts.push(newContact);
+      Store.saveContacts(contacts);
+      Store.addActivity(`<strong>${firstName} ${lastName}</strong> was added as a contact`, '#10b981');
+      contactId = newContact.id;
+      renderContacts();
+    }
+
     const dealData = {
       name: document.getElementById('deal-name').value.trim(),
       value: parseFloat(document.getElementById('deal-value').value) || 0,
       stage: document.getElementById('deal-stage').value,
-      contactId: document.getElementById('deal-contact').value || null,
+      contactId,
       notes: document.getElementById('deal-notes').value.trim(),
       updatedAt: new Date().toISOString()
     };
@@ -860,6 +926,7 @@
     document.getElementById('deal-cancel').addEventListener('click', closeDealModal);
     document.getElementById('deal-form').addEventListener('submit', saveDeal);
     document.getElementById('deal-delete').addEventListener('click', deleteDeal);
+    document.getElementById('deal-new-contact-toggle').addEventListener('click', toggleDealNewContact);
 
     // Contact modal (from Contacts page and Pipeline page)
     document.getElementById('btn-add-contact').addEventListener('click', () => openContactModal(null));

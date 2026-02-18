@@ -867,6 +867,43 @@ form {
   margin-top: 8px;
 }
 
+/* ===== Deal Contact Picker ===== */
+.deal-contact-picker {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.deal-contact-picker select {
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.deal-new-contact-fields {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.deal-new-contact-fields .form-group {
+  margin-bottom: 8px;
+}
+
+.deal-new-contact-fields .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.deal-new-contact-fields .form-row {
+  margin-bottom: 0;
+}
+
 /* ===== Contact Deal Stage Rows ===== */
 .contact-deal-row {
   display: flex;

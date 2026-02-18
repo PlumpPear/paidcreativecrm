@@ -212,9 +212,34 @@
         </div>
         <div class="form-group">
           <label for="deal-contact">Contact</label>
-          <select id="deal-contact">
-            <option value="">-- Select Contact --</option>
-          </select>
+          <div class="deal-contact-picker">
+            <select id="deal-contact">
+              <option value="">-- Select Contact --</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" id="deal-new-contact-toggle">+ New</button>
+          </div>
+          <div id="deal-new-contact-fields" class="deal-new-contact-fields" style="display:none">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="deal-contact-first">First Name *</label>
+                <input type="text" id="deal-contact-first" placeholder="John">
+              </div>
+              <div class="form-group">
+                <label for="deal-contact-last">Last Name *</label>
+                <input type="text" id="deal-contact-last" placeholder="Doe">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="deal-contact-email">Email</label>
+                <input type="email" id="deal-contact-email" placeholder="john@acme.com">
+              </div>
+              <div class="form-group">
+                <label for="deal-contact-company">Company</label>
+                <input type="text" id="deal-contact-company" placeholder="Acme Corp">
+              </div>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label for="deal-notes">Notes</label>
