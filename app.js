@@ -236,43 +236,59 @@
   }
 
   // Load initial data from Firestore (first load seeds cache)
+  // If Firestore is empty but localStorage has data, migrate it up automatically.
   function loadInitialData() {
     if (!_useFirebase) return Promise.resolve();
 
     return db.collection('crm').get().then(snapshot => {
+      const firestoreDocs = {};
       snapshot.forEach(doc => {
-        const data = doc.data();
-        switch (doc.id) {
-          case 'deals':
-            if (data.items) {
-              _cache.deals = data.items;
-              localStorage.setItem('crm_deals', JSON.stringify(data.items));
-            }
-            break;
-          case 'contacts':
-            if (data.items) {
-              _cache.contacts = data.items;
-              localStorage.setItem('crm_contacts', JSON.stringify(data.items));
-            }
-            break;
-          case 'activities':
-            if (data.items) {
-              _cache.activities = data.items;
-              localStorage.setItem('crm_activities', JSON.stringify(data.items));
-            }
-            break;
-          case 'settings':
-            if (data.mrrHistory) {
-              _cache.mrrHistory = data.mrrHistory;
-              localStorage.setItem('crm_mrr_history', JSON.stringify(data.mrrHistory));
-            }
-            if (data.mrrGoal != null) {
-              _cache.mrrGoal = data.mrrGoal;
-              localStorage.setItem('crm_mrr_goal', data.mrrGoal.toString());
-            }
-            break;
-        }
+        firestoreDocs[doc.id] = doc.data();
       });
+
+      // Check if Firestore has any deal/contact data yet
+      const firestoreHasData = (firestoreDocs.deals && firestoreDocs.deals.items && firestoreDocs.deals.items.length > 0) ||
+        (firestoreDocs.contacts && firestoreDocs.contacts.items && firestoreDocs.contacts.items.length > 0);
+
+      if (firestoreHasData) {
+        // Firestore has data — use it as the source of truth
+        if (firestoreDocs.deals && firestoreDocs.deals.items) {
+          _cache.deals = firestoreDocs.deals.items;
+          localStorage.setItem('crm_deals', JSON.stringify(firestoreDocs.deals.items));
+        }
+        if (firestoreDocs.contacts && firestoreDocs.contacts.items) {
+          _cache.contacts = firestoreDocs.contacts.items;
+          localStorage.setItem('crm_contacts', JSON.stringify(firestoreDocs.contacts.items));
+        }
+        if (firestoreDocs.activities && firestoreDocs.activities.items) {
+          _cache.activities = firestoreDocs.activities.items;
+          localStorage.setItem('crm_activities', JSON.stringify(firestoreDocs.activities.items));
+        }
+        if (firestoreDocs.settings) {
+          if (firestoreDocs.settings.mrrHistory) {
+            _cache.mrrHistory = firestoreDocs.settings.mrrHistory;
+            localStorage.setItem('crm_mrr_history', JSON.stringify(firestoreDocs.settings.mrrHistory));
+          }
+          if (firestoreDocs.settings.mrrGoal != null) {
+            _cache.mrrGoal = firestoreDocs.settings.mrrGoal;
+            localStorage.setItem('crm_mrr_goal', firestoreDocs.settings.mrrGoal.toString());
+          }
+        }
+      } else if (_cache.deals.length > 0 || _cache.contacts.length > 0) {
+        // Firestore is empty but localStorage has data — migrate it up
+        console.log('Migrating existing localStorage data to Firestore...');
+        const batch = db.batch();
+        batch.set(db.collection('crm').doc('deals'), { items: _cache.deals });
+        batch.set(db.collection('crm').doc('contacts'), { items: _cache.contacts });
+        batch.set(db.collection('crm').doc('activities'), { items: _cache.activities });
+        batch.set(db.collection('crm').doc('settings'), {
+          mrrGoal: _cache.mrrGoal,
+          mrrHistory: _cache.mrrHistory
+        });
+        return batch.commit().then(() => {
+          console.log('Migration complete — all data is now in Firestore.');
+        });
+      }
     });
   }
 
