@@ -195,7 +195,7 @@
     calculateMRR() {
       const deals = this.getDeals();
       return deals
-        .filter(d => d.stage === 'closed_won')
+        .filter(d => d.stage === 'closed_won' && d.type !== 'one_time')
         .reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0);
     }
   };
@@ -408,8 +408,15 @@
 
       countEl.textContent = stageDeals.length;
       const totalEl = document.querySelector(`[data-total="${stage}"]`);
-      const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
-      totalEl.textContent = formatCurrency(stageTotal);
+      const recurringTotal = stageDeals.filter(d => d.type !== 'one_time').reduce((sum, d) => sum + (d.value || 0), 0);
+      const oneTimeTotal = stageDeals.filter(d => d.type === 'one_time').reduce((sum, d) => sum + (d.value || 0), 0);
+      if (recurringTotal > 0 && oneTimeTotal > 0) {
+        totalEl.textContent = formatCurrency(recurringTotal) + '/mo + ' + formatCurrency(oneTimeTotal) + ' one-time';
+      } else if (oneTimeTotal > 0) {
+        totalEl.textContent = formatCurrency(oneTimeTotal) + ' one-time';
+      } else {
+        totalEl.textContent = formatCurrency(recurringTotal) + '/mo';
+      }
       body.innerHTML = '';
 
       stageDeals.forEach(deal => {
@@ -417,15 +424,19 @@
         const contact = contacts.find(c => c.id === deal.contactId);
         const companyText = contact ? (contact.company || `${contact.firstName} ${contact.lastName}`) : '';
 
+        const isOneTime = deal.type === 'one_time';
+        const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
+        const typeBadge = isOneTime ? '<span class="deal-type-badge one-time">One-Time</span>' : '';
+
         const card = document.createElement('div');
         card.className = 'deal-card';
         card.draggable = true;
         card.dataset.dealId = deal.id;
         card.innerHTML = `
-          <div class="deal-card-name">${escapeHtml(deal.name)}</div>
+          <div class="deal-card-top">${typeBadge}<div class="deal-card-name">${escapeHtml(deal.name)}</div></div>
           ${companyText ? `<div class="deal-card-company">${escapeHtml(companyText)}</div>` : ''}
           <div class="deal-card-footer">
-            <span class="deal-card-value">${formatCurrency(deal.value)}/mo</span>
+            <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>
             <span class="deal-card-date">${formatDate(deal.createdAt)}</span>
           </div>
         `;
@@ -439,6 +450,25 @@
     });
 
     updateMrrDisplay();
+    renderPipelineSummary();
+  }
+
+  function renderPipelineSummary() {
+    const deals = Store.getDeals();
+    const activeStages = STAGES.filter(s => s !== 'closed_won' && s !== 'closed_lost');
+    const activeDeals = deals.filter(d => activeStages.includes(d.stage));
+    const recurringPipeline = activeDeals.filter(d => d.type !== 'one_time').reduce((sum, d) => sum + (d.value || 0), 0);
+    const oneTimePipeline = activeDeals.filter(d => d.type === 'one_time').reduce((sum, d) => sum + (d.value || 0), 0);
+    const wonOneTime = deals.filter(d => d.stage === 'closed_won' && d.type === 'one_time').reduce((sum, d) => sum + (d.value || 0), 0);
+
+    const el = document.getElementById('pipeline-summary');
+    const parts = [];
+    if (recurringPipeline > 0) parts.push(`<span class="summary-item"><span class="summary-label">Recurring Pipeline</span><span class="summary-value">${formatCurrency(recurringPipeline)}/mo</span></span>`);
+    if (oneTimePipeline > 0) parts.push(`<span class="summary-item"><span class="summary-label">One-Time Pipeline</span><span class="summary-value one-time">${formatCurrency(oneTimePipeline)}</span></span>`);
+    if (wonOneTime > 0) parts.push(`<span class="summary-item"><span class="summary-label">One-Time Won</span><span class="summary-value won">${formatCurrency(wonOneTime)}</span></span>`);
+
+    el.innerHTML = parts.join('<span class="summary-divider"></span>');
+    el.style.display = parts.length > 0 ? '' : 'none';
   }
 
   function escapeHtml(text) {
@@ -626,11 +656,26 @@
       document.getElementById('deal-contact').value = deal.contactId || '';
       document.getElementById('deal-notes').value = deal.notes || '';
       deleteBtn.style.display = 'inline-flex';
+
+      // Set deal type
+      const dealType = deal.type || 'recurring';
+      document.getElementById('deal-type').value = dealType;
+      document.querySelectorAll('.deal-type-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.type === dealType);
+      });
+      document.getElementById('deal-value-label').textContent = dealType === 'one_time' ? 'Project Value ($) *' : 'Monthly Value ($) *';
     } else {
       titleEl.textContent = 'New Deal';
       form.reset();
       document.getElementById('deal-id').value = '';
       deleteBtn.style.display = 'none';
+
+      // Reset type toggle to recurring
+      document.getElementById('deal-type').value = 'recurring';
+      document.querySelectorAll('.deal-type-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.type === 'recurring');
+      });
+      document.getElementById('deal-value-label').textContent = 'Monthly Value ($) *';
     }
 
     modal.classList.add('show');
@@ -676,6 +721,7 @@
     const dealData = {
       name: document.getElementById('deal-name').value.trim(),
       value: parseFloat(document.getElementById('deal-value').value) || 0,
+      type: document.getElementById('deal-type').value,
       stage: document.getElementById('deal-stage').value,
       contactId,
       notes: document.getElementById('deal-notes').value.trim(),
@@ -817,7 +863,7 @@
             <div class="contact-deal-item" onclick="window.__openDeal('${d.id}')">
               <div>
                 <div class="contact-deal-name">${escapeHtml(d.name)}</div>
-                <div style="font-size:12px; color:var(--text-muted); margin-top:2px">${formatCurrency(d.value)}/mo</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:2px">${d.type === 'one_time' ? formatCurrency(d.value) + ' one-time' : formatCurrency(d.value) + '/mo'}</div>
               </div>
               <span class="contact-deal-stage stage-${d.stage}">${STAGE_LABELS[d.stage]}</span>
             </div>
@@ -1027,6 +1073,17 @@
     document.getElementById('deal-form').addEventListener('submit', saveDeal);
     document.getElementById('deal-delete').addEventListener('click', deleteDeal);
     document.getElementById('deal-new-contact-toggle').addEventListener('click', toggleDealNewContact);
+
+    // Deal type toggle
+    document.querySelectorAll('.deal-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.deal-type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const type = btn.dataset.type;
+        document.getElementById('deal-type').value = type;
+        document.getElementById('deal-value-label').textContent = type === 'one_time' ? 'Project Value ($) *' : 'Monthly Value ($) *';
+      });
+    });
 
     // Contact modal (from Contacts page and Pipeline page)
     document.getElementById('btn-add-contact').addEventListener('click', () => openContactModal(null));
