@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Paid Creative CRM</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <nav class="sidebar">
@@ -22,19 +21,37 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Contacts
       </a></li>
-      <li><a href="#" class="nav-link" data-view="dashboard">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-        Dashboard
-      </a></li>
     </ul>
     <div class="sidebar-footer">
-      <div class="mrr-mini">
+      <div class="rocket-tracker">
         <span class="mrr-label">Current MRR</span>
         <span class="mrr-value" id="sidebar-mrr">$0</span>
-        <div class="mrr-mini-bar">
-          <div class="mrr-mini-fill" id="sidebar-mrr-fill"></div>
+        <div class="rocket-bar-wrap">
+          <div class="rocket-bar-goal">
+            <span class="rocket-flag">&#127937;</span>
+          </div>
+          <div class="rocket-bar-track">
+            <div class="rocket-stars">
+              <span class="star" style="top:12%;left:20%">.</span>
+              <span class="star" style="top:30%;left:70%">.</span>
+              <span class="star" style="top:50%;left:35%">.</span>
+              <span class="star" style="top:68%;left:60%">.</span>
+              <span class="star" style="top:85%;left:25%">.</span>
+            </div>
+            <div class="rocket-bar-fill" id="rocket-bar-fill"></div>
+            <div class="rocket-ship" id="rocket-ship">
+              <span class="rocket-icon">&#128640;</span>
+              <span class="rocket-flame">&#128293;</span>
+            </div>
+          </div>
+          <div class="rocket-launchpad"></div>
         </div>
-        <span class="mrr-goal-label">Goal: $83,000</span>
+        <div class="rocket-goal-row" id="rocket-goal-row">
+          <span class="rocket-goal-label">Goal:</span>
+          <span class="rocket-goal-value" id="rocket-goal-value">$83,000</span>
+          <input type="number" class="rocket-goal-input" id="rocket-goal-input" min="0" step="1000">
+        </div>
+        <div class="rocket-pct" id="rocket-pct">0%</div>
       </div>
     </div>
   </nav>
@@ -121,63 +138,6 @@
       </div>
     </section>
 
-    <!-- Dashboard View -->
-    <section id="view-dashboard" class="view">
-      <div class="view-header">
-        <h2>Dashboard</h2>
-      </div>
-      <div class="dashboard-grid">
-        <div class="dash-card goal-card">
-          <h3>MRR Goal Tracker</h3>
-          <div class="goal-display">
-            <div class="goal-amount">
-              <span class="current-mrr" id="dash-current-mrr">$0</span>
-              <span class="goal-divider">/</span>
-              <span class="target-mrr">$83,000</span>
-            </div>
-            <div class="goal-progress-ring" id="goal-ring">
-              <svg viewBox="0 0 200 200">
-                <circle cx="100" cy="100" r="85" fill="none" stroke="#1e293b" stroke-width="12"/>
-                <circle cx="100" cy="100" r="85" fill="none" stroke="url(#goalGradient)" stroke-width="12" stroke-linecap="round" id="goal-circle" stroke-dasharray="534" stroke-dashoffset="534" transform="rotate(-90 100 100)"/>
-                <defs>
-                  <linearGradient id="goalGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" style="stop-color:#6366f1"/>
-                    <stop offset="100%" style="stop-color:#10b981"/>
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div class="goal-percent" id="goal-percent">0%</div>
-            </div>
-          </div>
-          <div class="goal-remaining" id="goal-remaining">$83,000 remaining to reach goal</div>
-        </div>
-
-        <div class="dash-card">
-          <h3>Pipeline Summary</h3>
-          <div class="summary-stats" id="pipeline-summary"></div>
-        </div>
-
-        <div class="dash-card chart-card">
-          <h3>Monthly Recurring Revenue</h3>
-          <canvas id="mrr-chart"></canvas>
-        </div>
-
-        <div class="dash-card chart-card">
-          <h3>Deals by Stage</h3>
-          <canvas id="stage-chart"></canvas>
-        </div>
-
-        <div class="dash-card">
-          <h3>Recent Activity</h3>
-          <div class="activity-feed" id="activity-feed"></div>
-        </div>
-
-        <div class="dash-card">
-          <h3>Top Deals</h3>
-          <div class="top-deals" id="top-deals"></div>
-        </div>
-      </div>
-    </section>
   </main>
 
   <!-- Deal Modal -->

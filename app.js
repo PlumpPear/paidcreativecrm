@@ -6,7 +6,16 @@
   'use strict';
 
   // ===== Constants =====
-  const MRR_GOAL = 83000;
+  const DEFAULT_MRR_GOAL = 83000;
+
+  function getMrrGoal() {
+    const stored = localStorage.getItem('crm_mrr_goal');
+    return stored ? parseFloat(stored) : DEFAULT_MRR_GOAL;
+  }
+
+  function setMrrGoal(val) {
+    localStorage.setItem('crm_mrr_goal', val.toString());
+  }
   const STAGES = ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
   const STAGE_LABELS = {
     discovery: 'Discovery',
@@ -144,7 +153,6 @@
     document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
     document.getElementById(`view-${viewName}`).classList.add('active');
 
-    if (viewName === 'dashboard') renderDashboard();
     if (viewName === 'contacts') renderContacts();
     if (viewName === 'pipeline') renderPipeline();
   }
@@ -673,237 +681,24 @@
     }
   }
 
-  // ===== Dashboard =====
-  let mrrChart = null;
-  let stageChart = null;
 
-  function renderDashboard() {
-    renderGoalTracker();
-    renderPipelineSummary();
-    renderMrrChart();
-    renderStageChart();
-    renderActivityFeed();
-    renderTopDeals();
-  }
-
-  function renderGoalTracker() {
-    const mrr = Store.calculateMRR();
-    const pct = Math.min((mrr / MRR_GOAL) * 100, 100);
-    const remaining = Math.max(MRR_GOAL - mrr, 0);
-    const circumference = 2 * Math.PI * 85; // ~534
-
-    document.getElementById('dash-current-mrr').textContent = formatCurrency(mrr);
-    document.getElementById('goal-percent').textContent = Math.round(pct) + '%';
-    document.getElementById('goal-remaining').textContent =
-      remaining > 0
-        ? `${formatCurrency(remaining)} remaining to reach goal`
-        : 'Goal reached!';
-
-    const circle = document.getElementById('goal-circle');
-    const offset = circumference - (pct / 100) * circumference;
-    circle.style.strokeDashoffset = offset;
-  }
-
-  function renderPipelineSummary() {
-    const deals = Store.getDeals();
-    const totalDeals = deals.length;
-    const totalValue = deals.reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0);
-    const wonDeals = deals.filter(d => d.stage === 'closed_won').length;
-    const closedDeals = deals.filter(d => d.stage === 'closed_won' || d.stage === 'closed_lost').length;
-    const winRate = closedDeals > 0 ? Math.round((wonDeals / closedDeals) * 100) : 0;
-    const activeDeals = deals.filter(d => !['closed_won', 'closed_lost'].includes(d.stage)).length;
-
-    document.getElementById('pipeline-summary').innerHTML = `
-      <div class="stat-item">
-        <div class="stat-value">${totalDeals}</div>
-        <div class="stat-label">Total Deals</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">${formatCurrency(totalValue)}</div>
-        <div class="stat-label">Total Pipeline</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">${activeDeals}</div>
-        <div class="stat-label">Active Deals</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value">${winRate}%</div>
-        <div class="stat-label">Win Rate</div>
-      </div>
-    `;
-  }
-
-  function renderMrrChart() {
-    const history = Store.getMrrHistory();
-    const ctx = document.getElementById('mrr-chart').getContext('2d');
-
-    // Build labels and data - show at least 6 months
-    let labels = [];
-    let data = [];
-
-    if (history.length === 0) {
-      // Show empty chart with current month
-      const now = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        labels.push(d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
-        data.push(0);
-      }
-    } else {
-      history.forEach(h => {
-        const [year, month] = h.month.split('-');
-        const d = new Date(parseInt(year), parseInt(month) - 1, 1);
-        labels.push(d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
-        data.push(h.value);
-      });
-    }
-
-    if (mrrChart) mrrChart.destroy();
-
-    mrrChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'MRR',
-            data,
-            borderColor: '#6366f1',
-            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-            fill: true,
-            tension: 0.3,
-            pointBackgroundColor: '#6366f1',
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            borderWidth: 2
-          },
-          {
-            label: 'Goal',
-            data: labels.map(() => MRR_GOAL),
-            borderColor: 'rgba(16, 185, 129, 0.4)',
-            borderDash: [8, 4],
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: false
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            labels: { color: '#94a3b8', font: { size: 12 } }
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
-            }
-          }
-        },
-        scales: {
-          x: {
-            ticks: { color: '#64748b' },
-            grid: { color: 'rgba(51, 65, 85, 0.5)' }
-          },
-          y: {
-            ticks: {
-              color: '#64748b',
-              callback: (val) => formatCurrency(val)
-            },
-            grid: { color: 'rgba(51, 65, 85, 0.5)' },
-            beginAtZero: true
-          }
-        }
-      }
-    });
-  }
-
-  function renderStageChart() {
-    const deals = Store.getDeals();
-    const ctx = document.getElementById('stage-chart').getContext('2d');
-
-    const stageCounts = STAGES.map(s => deals.filter(d => d.stage === s).length);
-    const stageLabels = STAGES.map(s => STAGE_LABELS[s]);
-    const colors = STAGES.map(s => STAGE_COLORS[s]);
-
-    if (stageChart) stageChart.destroy();
-
-    stageChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: stageLabels,
-        datasets: [{
-          data: stageCounts,
-          backgroundColor: colors,
-          borderColor: '#1e293b',
-          borderWidth: 3
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'right',
-            labels: { color: '#94a3b8', font: { size: 12 }, padding: 12 }
-          }
-        },
-        cutout: '60%'
-      }
-    });
-  }
-
-  function renderActivityFeed() {
-    const activities = Store.getActivities();
-    const feed = document.getElementById('activity-feed');
-
-    if (activities.length === 0) {
-      feed.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No recent activity</p>';
-      return;
-    }
-
-    feed.innerHTML = activities.slice(0, 10).map(a => `
-      <div class="activity-item">
-        <div class="activity-dot" style="background:${a.color}"></div>
-        <div>
-          <div class="activity-text">${a.text}</div>
-          <div class="activity-time">${timeAgo(a.time)}</div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  function renderTopDeals() {
-    const deals = Store.getDeals()
-      .filter(d => d.stage !== 'closed_lost')
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-
-    const container = document.getElementById('top-deals');
-
-    if (deals.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No deals yet</p>';
-      return;
-    }
-
-    container.innerHTML = deals.map(d => `
-      <div class="top-deal-item">
-        <div>
-          <div class="top-deal-name">${escapeHtml(d.name)}</div>
-          <span class="contact-deal-stage stage-${d.stage}" style="font-size:11px">${STAGE_LABELS[d.stage]}</span>
-        </div>
-        <div class="top-deal-value">${formatCurrency(d.value)}/mo</div>
-      </div>
-    `).join('');
-  }
-
-  // ===== MRR Display (Sidebar) =====
+  // ===== MRR Rocket Display (Sidebar) =====
   function updateMrrDisplay() {
     const mrr = Store.calculateMRR();
-    const pct = Math.min((mrr / MRR_GOAL) * 100, 100);
+    const goal = getMrrGoal();
+    const pct = goal > 0 ? Math.min((mrr / goal) * 100, 100) : 0;
+
     document.getElementById('sidebar-mrr').textContent = formatCurrency(mrr);
-    document.getElementById('sidebar-mrr-fill').style.width = pct + '%';
+    document.getElementById('rocket-bar-fill').style.height = pct + '%';
+    document.getElementById('rocket-ship').style.bottom = pct + '%';
+    document.getElementById('rocket-pct').textContent = Math.round(pct) + '%';
+    document.getElementById('rocket-goal-value').textContent = formatCurrency(goal);
+
+    // Boost flame visibility when there's progress
+    const flame = document.querySelector('.rocket-flame');
+    if (flame) {
+      flame.style.opacity = pct > 0 ? '1' : '0.4';
+    }
   }
 
   // ===== Search =====
@@ -951,6 +746,42 @@
         closeContactModal();
       }
     });
+
+    // Editable MRR goal
+    const goalRow = document.getElementById('rocket-goal-row');
+    const goalInput = document.getElementById('rocket-goal-input');
+
+    goalRow.addEventListener('click', () => {
+      if (goalRow.classList.contains('editing')) return;
+      goalRow.classList.add('editing');
+      goalInput.value = getMrrGoal();
+      goalInput.focus();
+      goalInput.select();
+    });
+
+    function commitGoalEdit() {
+      const val = parseFloat(goalInput.value);
+      if (val && val > 0) {
+        setMrrGoal(val);
+      }
+      goalRow.classList.remove('editing');
+      updateMrrDisplay();
+    }
+
+    goalInput.addEventListener('blur', commitGoalEdit);
+    goalInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        goalInput.blur();
+      }
+      if (e.key === 'Escape') {
+        goalRow.classList.remove('editing');
+        updateMrrDisplay();
+      }
+    });
+
+    // Prevent click on input from re-triggering the row click
+    goalInput.addEventListener('click', (e) => e.stopPropagation());
   }
 
   // ===== Initialize =====
