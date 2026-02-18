@@ -23,7 +23,7 @@
     proposal: 'Proposal',
     negotiation: 'Negotiation',
     closed_won: 'Closed Won',
-    closed_lost: 'Closed Lost'
+    closed_lost: 'Lost/Inactive'
   };
   const STAGE_COLORS = {
     discovery: '#6366f1',

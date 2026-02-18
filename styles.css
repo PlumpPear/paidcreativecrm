@@ -424,10 +424,13 @@ body {
 
 .column-header {
   padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.column-header-top {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid var(--border);
 }
 
 .stage-dot {
@@ -456,7 +459,7 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
-  padding: 0 16px 6px;
+  margin-top: 6px;
 }
 
 .column-body {
