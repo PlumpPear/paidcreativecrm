@@ -862,6 +862,42 @@ form {
   margin-top: 8px;
 }
 
+/* ===== Contact Deal Stage Rows ===== */
+.contact-deal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.contact-deal-row-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-deal-row select {
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+.contact-deal-row select:focus {
+  border-color: var(--accent-indigo);
+}
+
 /* ===== Stage Badge Colors ===== */
 .stage-discovery { background: rgba(99,102,241,0.15); color: #818cf8; }
 .stage-qualification { background: rgba(139,92,246,0.15); color: #a78bfa; }

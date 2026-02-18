@@ -486,6 +486,8 @@
     const form = document.getElementById('contact-form');
     const titleEl = document.getElementById('contact-modal-title');
     const deleteBtn = document.getElementById('contact-delete');
+    const dealsSection = document.getElementById('contact-deals-section');
+    const dealsContainer = document.getElementById('contact-deals-stages');
 
     if (contactId) {
       const contacts = Store.getContacts();
@@ -502,11 +504,30 @@
       document.getElementById('contact-title').value = contact.title || '';
       document.getElementById('contact-notes').value = contact.notes || '';
       deleteBtn.style.display = 'inline-flex';
+
+      // Show associated deals with stage dropdowns
+      const deals = Store.getDeals().filter(d => d.contactId === contactId);
+      if (deals.length > 0) {
+        dealsSection.style.display = '';
+        dealsContainer.innerHTML = deals.map(d => `
+          <div class="contact-deal-row">
+            <span class="contact-deal-row-name">${escapeHtml(d.name)}</span>
+            <select data-deal-id="${d.id}">
+              ${STAGES.map(s => `<option value="${s}"${d.stage === s ? ' selected' : ''}>${STAGE_LABELS[s]}</option>`).join('')}
+            </select>
+          </div>
+        `).join('');
+      } else {
+        dealsSection.style.display = 'none';
+        dealsContainer.innerHTML = '';
+      }
     } else {
       titleEl.textContent = 'New Contact';
       form.reset();
       document.getElementById('contact-id').value = '';
       deleteBtn.style.display = 'none';
+      dealsSection.style.display = 'none';
+      dealsContainer.innerHTML = '';
     }
 
     modal.classList.add('show');
@@ -538,6 +559,30 @@
         Store.saveContacts(contacts);
         Store.addActivity(`<strong>${contactData.firstName} ${contactData.lastName}</strong> was updated`, '#3b82f6');
       }
+
+      // Save any deal stage changes from the contact modal
+      const stageSelects = document.querySelectorAll('#contact-deals-stages select[data-deal-id]');
+      if (stageSelects.length > 0) {
+        const deals = Store.getDeals();
+        let dealsChanged = false;
+        stageSelects.forEach(sel => {
+          const deal = deals.find(d => d.id === sel.dataset.dealId);
+          if (deal && deal.stage !== sel.value) {
+            const oldStage = deal.stage;
+            deal.stage = sel.value;
+            deal.updatedAt = new Date().toISOString();
+            dealsChanged = true;
+            Store.addActivity(
+              `<strong>${deal.name}</strong> moved from ${STAGE_LABELS[oldStage]} to ${STAGE_LABELS[sel.value]}`,
+              STAGE_COLORS[sel.value]
+            );
+          }
+        });
+        if (dealsChanged) {
+          Store.saveDeals(deals);
+          Store.updateMrrHistory();
+        }
+      }
     } else {
       contactData.id = generateId();
       contactData.createdAt = new Date().toISOString();
@@ -548,6 +593,7 @@
 
     closeContactModal();
     renderContacts();
+    renderPipeline();
     if (selectedContactId === id) {
       showContactDetail(id);
     }
@@ -815,8 +861,9 @@
     document.getElementById('deal-form').addEventListener('submit', saveDeal);
     document.getElementById('deal-delete').addEventListener('click', deleteDeal);
 
-    // Contact modal
+    // Contact modal (from Contacts page and Pipeline page)
     document.getElementById('btn-add-contact').addEventListener('click', () => openContactModal(null));
+    document.getElementById('btn-add-contact-pipeline').addEventListener('click', () => openContactModal(null));
     document.getElementById('contact-modal-close').addEventListener('click', closeContactModal);
     document.getElementById('contact-cancel').addEventListener('click', closeContactModal);
     document.getElementById('contact-form').addEventListener('submit', saveContact);
