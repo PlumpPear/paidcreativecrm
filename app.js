@@ -5,17 +5,57 @@
 (function () {
   'use strict';
 
+  // ===== Firebase Setup =====
+  // Replace these values with your own Firebase project config.
+  // 1. Go to https://console.firebase.google.com
+  // 2. Create a project (or use an existing one)
+  // 3. Go to Project Settings → General → Your apps → Web app
+  // 4. Copy the firebaseConfig object and paste it below
+  // 5. Go to Firestore Database → Create database → Start in test mode
+  const firebaseConfig = {
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
+  };
+
+  let db = null;
+  const _useFirebase = firebaseConfig.projectId !== "";
+
+  if (_useFirebase) {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  }
+
   // ===== Constants =====
   const DEFAULT_MRR_GOAL = 83000;
 
+  // Local cache (populated from Firestore or localStorage)
+  let _cache = {
+    deals: JSON.parse(localStorage.getItem('crm_deals') || '[]'),
+    contacts: JSON.parse(localStorage.getItem('crm_contacts') || '[]'),
+    activities: JSON.parse(localStorage.getItem('crm_activities') || '[]'),
+    mrrHistory: JSON.parse(localStorage.getItem('crm_mrr_history') || '[]'),
+    mrrGoal: parseFloat(localStorage.getItem('crm_mrr_goal')) || DEFAULT_MRR_GOAL
+  };
+
   function getMrrGoal() {
-    const stored = localStorage.getItem('crm_mrr_goal');
-    return stored ? parseFloat(stored) : DEFAULT_MRR_GOAL;
+    return _cache.mrrGoal;
   }
 
   function setMrrGoal(val) {
+    _cache.mrrGoal = val;
     localStorage.setItem('crm_mrr_goal', val.toString());
+    if (_useFirebase) {
+      db.collection('crm').doc('settings').set(
+        { mrrGoal: val },
+        { merge: true }
+      );
+    }
   }
+
   const STAGES = ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
   const STAGE_LABELS = {
     discovery: 'Discovery',
@@ -38,22 +78,34 @@
   // ===== Data Store =====
   const Store = {
     getDeals() {
-      return JSON.parse(localStorage.getItem('crm_deals') || '[]');
+      return _cache.deals;
     },
     saveDeals(deals) {
+      _cache.deals = deals;
       localStorage.setItem('crm_deals', JSON.stringify(deals));
+      if (_useFirebase) {
+        db.collection('crm').doc('deals').set({ items: deals });
+      }
     },
     getContacts() {
-      return JSON.parse(localStorage.getItem('crm_contacts') || '[]');
+      return _cache.contacts;
     },
     saveContacts(contacts) {
+      _cache.contacts = contacts;
       localStorage.setItem('crm_contacts', JSON.stringify(contacts));
+      if (_useFirebase) {
+        db.collection('crm').doc('contacts').set({ items: contacts });
+      }
     },
     getActivities() {
-      return JSON.parse(localStorage.getItem('crm_activities') || '[]');
+      return _cache.activities;
     },
     saveActivities(activities) {
+      _cache.activities = activities;
       localStorage.setItem('crm_activities', JSON.stringify(activities));
+      if (_useFirebase) {
+        db.collection('crm').doc('activities').set({ items: activities });
+      }
     },
     addActivity(text, color) {
       const activities = this.getActivities();
@@ -67,10 +119,17 @@
       this.saveActivities(activities);
     },
     getMrrHistory() {
-      return JSON.parse(localStorage.getItem('crm_mrr_history') || '[]');
+      return _cache.mrrHistory;
     },
     saveMrrHistory(history) {
+      _cache.mrrHistory = history;
       localStorage.setItem('crm_mrr_history', JSON.stringify(history));
+      if (_useFirebase) {
+        db.collection('crm').doc('settings').set(
+          { mrrHistory: history },
+          { merge: true }
+        );
+      }
     },
     updateMrrHistory() {
       const history = this.getMrrHistory();
@@ -96,6 +155,126 @@
         .reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0);
     }
   };
+
+  // ===== Firestore Real-Time Listeners =====
+  function initFirebaseListeners() {
+    if (!_useFirebase) return;
+
+    // Suppress re-renders triggered by our own writes
+    let _localWriteInProgress = false;
+    const originalSaveDeals = Store.saveDeals.bind(Store);
+    const originalSaveContacts = Store.saveContacts.bind(Store);
+    const originalSaveActivities = Store.saveActivities.bind(Store);
+    const originalSaveMrrHistory = Store.saveMrrHistory.bind(Store);
+
+    Store.saveDeals = function (deals) {
+      _localWriteInProgress = true;
+      originalSaveDeals(deals);
+      setTimeout(() => { _localWriteInProgress = false; }, 500);
+    };
+    Store.saveContacts = function (contacts) {
+      _localWriteInProgress = true;
+      originalSaveContacts(contacts);
+      setTimeout(() => { _localWriteInProgress = false; }, 500);
+    };
+    Store.saveActivities = function (activities) {
+      _localWriteInProgress = true;
+      originalSaveActivities(activities);
+      setTimeout(() => { _localWriteInProgress = false; }, 500);
+    };
+    Store.saveMrrHistory = function (history) {
+      _localWriteInProgress = true;
+      originalSaveMrrHistory(history);
+      setTimeout(() => { _localWriteInProgress = false; }, 500);
+    };
+
+    db.collection('crm').doc('deals').onSnapshot(doc => {
+      if (_localWriteInProgress) return;
+      const data = doc.data();
+      if (data && data.items) {
+        _cache.deals = data.items;
+        localStorage.setItem('crm_deals', JSON.stringify(data.items));
+        renderPipeline();
+      }
+    });
+
+    db.collection('crm').doc('contacts').onSnapshot(doc => {
+      if (_localWriteInProgress) return;
+      const data = doc.data();
+      if (data && data.items) {
+        _cache.contacts = data.items;
+        localStorage.setItem('crm_contacts', JSON.stringify(data.items));
+        renderContacts();
+        renderPipeline();
+      }
+    });
+
+    db.collection('crm').doc('activities').onSnapshot(doc => {
+      if (_localWriteInProgress) return;
+      const data = doc.data();
+      if (data && data.items) {
+        _cache.activities = data.items;
+        localStorage.setItem('crm_activities', JSON.stringify(data.items));
+      }
+    });
+
+    db.collection('crm').doc('settings').onSnapshot(doc => {
+      if (_localWriteInProgress) return;
+      const data = doc.data();
+      if (data) {
+        if (data.mrrHistory) {
+          _cache.mrrHistory = data.mrrHistory;
+          localStorage.setItem('crm_mrr_history', JSON.stringify(data.mrrHistory));
+        }
+        if (data.mrrGoal != null) {
+          _cache.mrrGoal = data.mrrGoal;
+          localStorage.setItem('crm_mrr_goal', data.mrrGoal.toString());
+          updateMrrDisplay();
+        }
+      }
+    });
+  }
+
+  // Load initial data from Firestore (first load seeds cache)
+  function loadInitialData() {
+    if (!_useFirebase) return Promise.resolve();
+
+    return db.collection('crm').get().then(snapshot => {
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        switch (doc.id) {
+          case 'deals':
+            if (data.items) {
+              _cache.deals = data.items;
+              localStorage.setItem('crm_deals', JSON.stringify(data.items));
+            }
+            break;
+          case 'contacts':
+            if (data.items) {
+              _cache.contacts = data.items;
+              localStorage.setItem('crm_contacts', JSON.stringify(data.items));
+            }
+            break;
+          case 'activities':
+            if (data.items) {
+              _cache.activities = data.items;
+              localStorage.setItem('crm_activities', JSON.stringify(data.items));
+            }
+            break;
+          case 'settings':
+            if (data.mrrHistory) {
+              _cache.mrrHistory = data.mrrHistory;
+              localStorage.setItem('crm_mrr_history', JSON.stringify(data.mrrHistory));
+            }
+            if (data.mrrGoal != null) {
+              _cache.mrrGoal = data.mrrGoal;
+              localStorage.setItem('crm_mrr_goal', data.mrrGoal.toString());
+            }
+            break;
+        }
+      });
+    });
+  }
 
   // ===== Utility Functions =====
   function generateId() {
@@ -856,8 +1035,13 @@
     initDragDrop();
     initEventListeners();
     initSearch();
-    renderPipeline();
-    Store.updateMrrHistory();
+
+    // Load data from Firestore (if configured), then render
+    loadInitialData().then(() => {
+      renderPipeline();
+      Store.updateMrrHistory();
+      initFirebaseListeners();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', init);
