@@ -75,7 +75,6 @@ body {
 .nav-links {
   list-style: none;
   padding: 12px 8px;
-  flex: 1;
 }
 
 .nav-link {
