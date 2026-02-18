@@ -29,6 +29,50 @@
     db = firebase.firestore();
   }
 
+  // ===== Password Gate =====
+  const APP_PASSWORD = 'tothemoon';
+  const AUTH_KEY = 'crm_auth_token';
+  const AUTH_DURATION_DAYS = 30;
+
+  function isAuthenticated() {
+    const token = localStorage.getItem(AUTH_KEY);
+    if (!token) return false;
+    const expiry = parseInt(token, 10);
+    if (isNaN(expiry) || Date.now() > expiry) {
+      localStorage.removeItem(AUTH_KEY);
+      return false;
+    }
+    return true;
+  }
+
+  function setAuthenticated() {
+    const expiry = Date.now() + AUTH_DURATION_DAYS * 24 * 60 * 60 * 1000;
+    localStorage.setItem(AUTH_KEY, expiry.toString());
+  }
+
+  function initPasswordGate(onSuccess) {
+    const gate = document.getElementById('password-gate');
+    if (isAuthenticated()) {
+      gate.classList.add('hidden');
+      onSuccess();
+      return;
+    }
+    document.getElementById('password-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var input = document.getElementById('password-input');
+      var error = document.getElementById('password-error');
+      if (input.value === APP_PASSWORD) {
+        setAuthenticated();
+        gate.classList.add('hidden');
+        onSuccess();
+      } else {
+        error.textContent = 'Incorrect password. Try again.';
+        input.value = '';
+        input.focus();
+      }
+    });
+  }
+
   // ===== Constants =====
   const DEFAULT_MRR_GOAL = 83000;
 
@@ -1060,5 +1104,7 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', function () {
+    initPasswordGate(init);
+  });
 })();

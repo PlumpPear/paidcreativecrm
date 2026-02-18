@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Password Gate -->
+  <div class="password-gate" id="password-gate">
+    <div class="password-gate-box">
+      <div class="password-gate-logo">PaidCreative <span>CRM</span></div>
+      <p class="password-gate-subtitle">Enter password to continue</p>
+      <form id="password-form">
+        <input type="password" id="password-input" class="password-gate-input" placeholder="Password" autocomplete="off" autofocus>
+        <div class="password-gate-error" id="password-error"></div>
+        <button type="submit" class="btn btn-primary password-gate-btn">Unlock</button>
+      </form>
+    </div>
+  </div>
+
   <nav class="sidebar">
     <div class="sidebar-brand">
       <h1>PaidCreative</h1>

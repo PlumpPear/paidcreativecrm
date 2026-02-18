@@ -1,3 +1,70 @@
+/* ===== Password Gate ===== */
+.password-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.password-gate.hidden {
+  display: none;
+}
+.password-gate-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.password-gate-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.password-gate-logo span {
+  color: var(--accent-indigo);
+  font-weight: 400;
+  font-size: 0.9rem;
+  margin-left: 4px;
+}
+.password-gate-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 24px;
+}
+.password-gate-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.password-gate-input:focus {
+  border-color: var(--accent-indigo);
+}
+.password-gate-error {
+  color: var(--accent-red);
+  font-size: 0.8rem;
+  min-height: 20px;
+  margin: 8px 0;
+}
+.password-gate-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
 /* ===== Reset & Base ===== */
 *, *::before, *::after {
   box-sizing: border-box;
