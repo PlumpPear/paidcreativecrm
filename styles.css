@@ -153,6 +153,7 @@ body {
   flex: 1;
   min-height: 100vh;
   padding: 24px 32px;
+  overflow-x: auto;
 }
 
 .view {
@@ -168,17 +169,21 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .view-header h2 {
   font-size: 24px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .header-actions {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 /* ===== Buttons ===== */
