@@ -1039,7 +1039,7 @@
   }
 
 
-  // ===== MRR Rocket Display (Sidebar) =====
+  // ===== MRR Mission Display (Sidebar) =====
   function updateMrrDisplay() {
     const mrr = Store.calculateMRR();
     const goal = getMrrGoal();
@@ -1051,10 +1051,28 @@
     document.getElementById('rocket-pct').textContent = Math.round(pct) + '%';
     document.getElementById('rocket-goal-value').textContent = formatCurrency(goal);
 
-    // Boost flame visibility when there's progress
-    const flame = document.querySelector('.rocket-flame');
-    if (flame) {
-      flame.style.opacity = pct > 0 ? '1' : '0.4';
+    // Move the ambient glow with the fill
+    const glowEl = document.getElementById('mission-bar-glow');
+    if (glowEl) {
+      glowEl.style.bottom = pct + '%';
+    }
+
+    // Highlight reached milestones
+    document.querySelectorAll('.mission-milestones .milestone').forEach(m => {
+      const pos = parseFloat(m.style.bottom);
+      m.classList.toggle('reached', pct >= pos);
+    });
+
+    // Toggle thrust visibility based on progress
+    const thrust = document.querySelector('.capsule-thrust');
+    if (thrust) {
+      thrust.style.opacity = pct > 0 ? '1' : '0.3';
+    }
+
+    // Goal reached celebration
+    const tracker = document.querySelector('.mission-tracker');
+    if (tracker) {
+      tracker.classList.toggle('goal-reached', pct >= 100);
     }
   }
 

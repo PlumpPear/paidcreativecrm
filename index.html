@@ -36,35 +36,70 @@
       </a></li>
     </ul>
     <div class="sidebar-footer">
-      <div class="rocket-tracker">
-        <span class="mrr-label">Current MRR</span>
-        <span class="mrr-value" id="sidebar-mrr">$0</span>
-        <div class="rocket-bar-wrap">
-          <div class="rocket-bar-goal">
-            <span class="rocket-flag">&#127937;</span>
-          </div>
-          <div class="rocket-bar-track">
-            <div class="rocket-stars">
-              <span class="star" style="top:12%;left:20%">.</span>
-              <span class="star" style="top:30%;left:70%">.</span>
-              <span class="star" style="top:50%;left:35%">.</span>
-              <span class="star" style="top:68%;left:60%">.</span>
-              <span class="star" style="top:85%;left:25%">.</span>
-            </div>
-            <div class="rocket-bar-fill" id="rocket-bar-fill"></div>
-            <div class="rocket-ship" id="rocket-ship">
-              <span class="rocket-icon">&#128640;</span>
-              <span class="rocket-flame">&#128293;</span>
-            </div>
-          </div>
-          <div class="rocket-launchpad"></div>
+      <div class="mission-tracker">
+        <div class="mission-header">
+          <span class="mission-label">Current MRR</span>
+          <span class="mission-mrr" id="sidebar-mrr">$0</span>
         </div>
-        <div class="rocket-goal-row" id="rocket-goal-row">
-          <span class="rocket-goal-label">Goal:</span>
-          <span class="rocket-goal-value" id="rocket-goal-value">$83,000</span>
-          <input type="number" class="rocket-goal-input" id="rocket-goal-input" min="0" step="1000">
+        <div class="mission-bar-wrap">
+          <div class="mission-goal-marker">
+            <svg class="mission-goal-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1l2 3h4l-3.2 2.5L12 10 8 7.5 4 10l1.2-3.5L2 4h4l2-3z" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="mission-bar-track">
+            <div class="mission-stars">
+              <span class="mstar" style="top:8%;left:22%"></span>
+              <span class="mstar" style="top:18%;left:68%"></span>
+              <span class="mstar" style="top:32%;left:40%"></span>
+              <span class="mstar" style="top:48%;left:72%"></span>
+              <span class="mstar" style="top:58%;left:18%"></span>
+              <span class="mstar" style="top:72%;left:55%"></span>
+              <span class="mstar" style="top:88%;left:30%"></span>
+            </div>
+            <div class="mission-milestones">
+              <span class="milestone" style="bottom:25%" data-label="25%"></span>
+              <span class="milestone" style="bottom:50%" data-label="50%"></span>
+              <span class="milestone" style="bottom:75%" data-label="75%"></span>
+            </div>
+            <div class="mission-bar-fill" id="rocket-bar-fill"></div>
+            <div class="mission-bar-glow" id="mission-bar-glow"></div>
+            <div class="mission-capsule" id="rocket-ship">
+              <svg class="capsule-icon" width="20" height="24" viewBox="0 0 20 24" fill="none">
+                <path d="M10 1C10 1 4 5 4 12c0 4 2 7 3 8.5L8 22h4l1-1.5c1-1.5 3-4.5 3-8.5 0-7-6-11-6-11z" fill="url(#capsuleGrad)" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/>
+                <ellipse cx="10" cy="10" rx="2.5" ry="2.5" fill="rgba(255,255,255,0.9)"/>
+                <ellipse cx="10" cy="10" rx="1.5" ry="1.5" fill="rgba(147,197,253,0.8)"/>
+                <defs>
+                  <linearGradient id="capsuleGrad" x1="10" y1="1" x2="10" y2="22" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#c4b5fd"/>
+                    <stop offset="50%" stop-color="#818cf8"/>
+                    <stop offset="100%" stop-color="#6366f1"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="capsule-thrust">
+                <span class="thrust-core"></span>
+                <span class="thrust-outer"></span>
+              </div>
+            </div>
+          </div>
+          <div class="mission-launchpad">
+            <svg width="44" height="8" viewBox="0 0 44 8" fill="none">
+              <rect x="2" y="2" width="40" height="4" rx="2" fill="#334155"/>
+              <rect x="8" y="0" width="2" height="8" rx="1" fill="#475569"/>
+              <rect x="20" y="0" width="4" height="8" rx="2" fill="#475569"/>
+              <rect x="34" y="0" width="2" height="8" rx="1" fill="#475569"/>
+            </svg>
+          </div>
         </div>
-        <div class="rocket-pct" id="rocket-pct">0%</div>
+        <div class="mission-stats">
+          <div class="mission-pct" id="rocket-pct">0%</div>
+          <div class="mission-goal-row" id="rocket-goal-row">
+            <span class="mission-goal-label">Goal</span>
+            <span class="mission-goal-value" id="rocket-goal-value">$83,000</span>
+            <input type="number" class="mission-goal-input" id="rocket-goal-input" min="0" step="1000">
+          </div>
+        </div>
       </div>
     </div>
   </nav>
