@@ -675,6 +675,10 @@ body {
   text-transform: uppercase;
 }
 
+.deal-card-owner.madison {
+  background: var(--accent-amber);
+}
+
 .deal-card-value.one-time {
   color: var(--accent-amber);
 }

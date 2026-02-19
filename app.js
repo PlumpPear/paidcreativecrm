@@ -427,8 +427,9 @@
         const isOneTime = deal.type === 'one_time';
         const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
         const typeBadge = isOneTime ? '<span class="deal-type-badge one-time">One-Time</span>' : '';
+        const ownerClass = deal.owner === 'Madison' ? ' madison' : '';
         const ownerHtml = deal.owner
-          ? `<span class="deal-card-owner" title="${escapeHtml(deal.owner)}">${escapeHtml(deal.owner[0])}</span>`
+          ? `<span class="deal-card-owner${ownerClass}" title="${escapeHtml(deal.owner)}">${escapeHtml(deal.owner[0])}</span>`
           : '';
 
         const card = document.createElement('div');
