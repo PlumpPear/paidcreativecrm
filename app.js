@@ -427,13 +427,16 @@
         const isOneTime = deal.type === 'one_time';
         const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
         const typeBadge = isOneTime ? '<span class="deal-type-badge one-time">One-Time</span>' : '';
+        const ownerHtml = deal.owner
+          ? `<span class="deal-card-owner" title="${escapeHtml(deal.owner)}">${escapeHtml(deal.owner[0])}</span>`
+          : '';
 
         const card = document.createElement('div');
         card.className = 'deal-card';
         card.draggable = true;
         card.dataset.dealId = deal.id;
         card.innerHTML = `
-          <div class="deal-card-top">${typeBadge}<div class="deal-card-name">${escapeHtml(deal.name)}</div></div>
+          <div class="deal-card-top">${typeBadge}<div class="deal-card-name">${escapeHtml(deal.name)}</div>${ownerHtml}</div>
           ${companyText ? `<div class="deal-card-company">${escapeHtml(companyText)}</div>` : ''}
           <div class="deal-card-footer">
             <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>
@@ -664,6 +667,7 @@
         b.classList.toggle('active', b.dataset.type === dealType);
       });
       document.getElementById('deal-value-label').textContent = dealType === 'one_time' ? 'Project Value ($) *' : 'Monthly Value ($) *';
+      document.getElementById('deal-owner').value = deal.owner || '';
     } else {
       titleEl.textContent = 'New Deal';
       form.reset();
@@ -723,6 +727,7 @@
       value: parseFloat(document.getElementById('deal-value').value) || 0,
       type: document.getElementById('deal-type').value,
       stage: document.getElementById('deal-stage').value,
+      owner: document.getElementById('deal-owner').value,
       contactId,
       notes: document.getElementById('deal-notes').value.trim(),
       updatedAt: new Date().toISOString()
