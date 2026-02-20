@@ -634,6 +634,28 @@ body {
   font-size: 14px;
   font-weight: 600;
   flex: 1;
+  cursor: default;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background 0.15s ease;
+}
+
+.column-header h3:hover {
+  background: var(--bg-hover);
+}
+
+.stage-rename-input {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--accent-indigo);
+  border-radius: 4px;
+  padding: 1px 4px;
+  outline: none;
 }
 
 .deal-count {

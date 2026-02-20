@@ -82,7 +82,8 @@
     contacts: JSON.parse(localStorage.getItem('crm_contacts') || '[]'),
     activities: JSON.parse(localStorage.getItem('crm_activities') || '[]'),
     mrrHistory: JSON.parse(localStorage.getItem('crm_mrr_history') || '[]'),
-    mrrGoal: parseFloat(localStorage.getItem('crm_mrr_goal')) || DEFAULT_MRR_GOAL
+    mrrGoal: parseFloat(localStorage.getItem('crm_mrr_goal')) || DEFAULT_MRR_GOAL,
+    stageLabels: JSON.parse(localStorage.getItem('crm_stage_labels') || '{}')
   };
 
   function getMrrGoal() {
@@ -95,6 +96,21 @@
     if (_useFirebase) {
       db.collection('crm').doc('settings').set(
         { mrrGoal: val },
+        { merge: true }
+      );
+    }
+  }
+
+  function getStageLabel(stage) {
+    return _cache.stageLabels[stage] || STAGE_LABELS[stage] || stage;
+  }
+
+  function setStageLabel(stage, label) {
+    _cache.stageLabels[stage] = label;
+    localStorage.setItem('crm_stage_labels', JSON.stringify(_cache.stageLabels));
+    if (_useFirebase) {
+      db.collection('crm').doc('settings').set(
+        { stageLabels: _cache.stageLabels },
         { merge: true }
       );
     }
@@ -275,6 +291,11 @@
           localStorage.setItem('crm_mrr_goal', data.mrrGoal.toString());
           updateMrrDisplay();
         }
+        if (data.stageLabels) {
+          _cache.stageLabels = data.stageLabels;
+          localStorage.setItem('crm_stage_labels', JSON.stringify(data.stageLabels));
+          renderPipeline();
+        }
       }
     });
   }
@@ -317,6 +338,10 @@
             _cache.mrrGoal = firestoreDocs.settings.mrrGoal;
             localStorage.setItem('crm_mrr_goal', firestoreDocs.settings.mrrGoal.toString());
           }
+          if (firestoreDocs.settings.stageLabels) {
+            _cache.stageLabels = firestoreDocs.settings.stageLabels;
+            localStorage.setItem('crm_stage_labels', JSON.stringify(firestoreDocs.settings.stageLabels));
+          }
         }
       } else if (_cache.deals.length > 0 || _cache.contacts.length > 0) {
         // Firestore is empty but localStorage has data — migrate it up
@@ -327,7 +352,8 @@
         batch.set(db.collection('crm').doc('activities'), { items: _cache.activities });
         batch.set(db.collection('crm').doc('settings'), {
           mrrGoal: _cache.mrrGoal,
-          mrrHistory: _cache.mrrHistory
+          mrrHistory: _cache.mrrHistory,
+          stageLabels: _cache.stageLabels
         });
         return batch.commit().then(() => {
           console.log('Migration complete — all data is now in Firestore.');
@@ -401,6 +427,9 @@
     const deals = Store.getDeals();
 
     STAGES.forEach(stage => {
+      const col = document.querySelector(`.pipeline-column[data-stage="${stage}"]`);
+      const h3 = col.querySelector('.column-header h3');
+      h3.textContent = getStageLabel(stage);
       const body = document.querySelector(`.column-body[data-stage="${stage}"]`);
       const countEl = document.querySelector(`[data-count="${stage}"]`);
       const stageDeals = deals.filter(d => d.stage === stage)
@@ -583,7 +612,7 @@
 
         if (stageChanged) {
           Store.addActivity(
-            `<strong>${deal.name}</strong> moved from ${STAGE_LABELS[oldStage]} to ${STAGE_LABELS[newStage]}`,
+            `<strong>${deal.name}</strong> moved from ${getStageLabel(oldStage)} to ${getStageLabel(newStage)}`,
             STAGE_COLORS[newStage]
           );
           Store.updateMrrHistory();
@@ -643,6 +672,12 @@
     contacts.forEach(c => {
       contactSelect.innerHTML += `<option value="${c.id}">${escapeHtml(c.firstName + ' ' + c.lastName)}${c.company ? ' (' + escapeHtml(c.company) + ')' : ''}</option>`;
     });
+
+    // Populate stage dropdown with custom labels
+    const stageSelect = document.getElementById('deal-stage');
+    stageSelect.innerHTML = STAGES.map(s =>
+      `<option value="${s}">${escapeHtml(getStageLabel(s))}</option>`
+    ).join('');
 
     // Reset inline new-contact fields
     resetDealNewContactFields();
@@ -746,7 +781,7 @@
       dealData.createdAt = new Date().toISOString();
       deals.push(dealData);
       Store.saveDeals(deals);
-      Store.addActivity(`<strong>${dealData.name}</strong> was added to ${STAGE_LABELS[dealData.stage]}`, STAGE_COLORS[dealData.stage]);
+      Store.addActivity(`<strong>${dealData.name}</strong> was added to ${getStageLabel(dealData.stage)}`, STAGE_COLORS[dealData.stage]);
     }
 
     Store.updateMrrHistory();
@@ -871,7 +906,7 @@
                 <div class="contact-deal-name">${escapeHtml(d.name)}</div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:2px">${d.type === 'one_time' ? formatCurrency(d.value) + ' one-time' : formatCurrency(d.value) + '/mo'}</div>
               </div>
-              <span class="contact-deal-stage stage-${d.stage}">${STAGE_LABELS[d.stage]}</span>
+              <span class="contact-deal-stage stage-${d.stage}">${getStageLabel(d.stage)}</span>
             </div>
           `).join('')}
         </div>
@@ -944,7 +979,7 @@
           <div class="contact-deal-row">
             <span class="contact-deal-row-name">${escapeHtml(d.name)}</span>
             <select data-deal-id="${d.id}">
-              ${STAGES.map(s => `<option value="${s}"${d.stage === s ? ' selected' : ''}>${STAGE_LABELS[s]}</option>`).join('')}
+              ${STAGES.map(s => `<option value="${s}"${d.stage === s ? ' selected' : ''}>${getStageLabel(s)}</option>`).join('')}
             </select>
           </div>
         `).join('');
@@ -1004,7 +1039,7 @@
             deal.updatedAt = new Date().toISOString();
             dealsChanged = true;
             Store.addActivity(
-              `<strong>${deal.name}</strong> moved from ${STAGE_LABELS[oldStage]} to ${STAGE_LABELS[sel.value]}`,
+              `<strong>${deal.name}</strong> moved from ${getStageLabel(oldStage)} to ${getStageLabel(sel.value)}`,
               STAGE_COLORS[sel.value]
             );
           }
@@ -1170,12 +1205,61 @@
     goalInput.addEventListener('click', (e) => e.stopPropagation());
   }
 
+  // ===== Column Rename =====
+  function initColumnRename() {
+    document.querySelectorAll('.pipeline-column').forEach(col => {
+      const stage = col.dataset.stage;
+      const h3 = col.querySelector('.column-header h3');
+
+      h3.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        if (h3.querySelector('.stage-rename-input')) return;
+
+        const current = getStageLabel(stage);
+        h3.innerHTML = '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'stage-rename-input';
+        input.value = current;
+        input.maxLength = 30;
+        h3.appendChild(input);
+        input.focus();
+        input.select();
+
+        function commit() {
+          const val = input.value.trim();
+          if (val && val !== STAGE_LABELS[stage]) {
+            setStageLabel(stage, val);
+          } else if (val === STAGE_LABELS[stage]) {
+            // Reset to default if user typed the default back
+            delete _cache.stageLabels[stage];
+            localStorage.setItem('crm_stage_labels', JSON.stringify(_cache.stageLabels));
+            if (_useFirebase) {
+              db.collection('crm').doc('settings').set(
+                { stageLabels: _cache.stageLabels },
+                { merge: true }
+              );
+            }
+          }
+          h3.textContent = getStageLabel(stage);
+        }
+
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+          if (ev.key === 'Escape') { h3.textContent = getStageLabel(stage); }
+        });
+      });
+    });
+  }
+
   // ===== Initialize =====
   function init() {
     initNavigation();
     initDragDrop();
     initEventListeners();
     initSearch();
+    initColumnRename();
 
     // Load data from Firestore (if configured), then render
     loadInitialData().then(() => {
