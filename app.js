@@ -1086,12 +1086,6 @@
     document.getElementById('rocket-pct').textContent = Math.round(pct) + '%';
     document.getElementById('rocket-goal-value').textContent = formatCurrency(goal);
 
-    // Move the ambient glow with the fill
-    const glowEl = document.getElementById('mission-bar-glow');
-    if (glowEl) {
-      glowEl.style.bottom = pct + '%';
-    }
-
     // Highlight reached milestones
     document.querySelectorAll('.mission-milestones .milestone').forEach(m => {
       const pos = parseFloat(m.style.bottom);
