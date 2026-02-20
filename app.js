@@ -454,7 +454,7 @@
         const companyText = contact ? (contact.company || `${contact.firstName} ${contact.lastName}`) : '';
 
         const isOneTime = deal.type === 'one_time';
-        const valueLabel = isOneTime ? formatCurrency(deal.value) + '/one-time' : formatCurrency(deal.value) + '/mo';
+        const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
         const typeBadge = isOneTime ? '<span class="deal-type-badge one-time">One-Time</span>' : '';
         const ownerClass = deal.owner === 'Madison' ? ' madison' : '';
         const ownerHtml = deal.owner
@@ -466,10 +466,10 @@
         card.draggable = true;
         card.dataset.dealId = deal.id;
         card.innerHTML = `
-          <div class="deal-card-top">${typeBadge}<div class="deal-card-name">${escapeHtml(deal.name)}</div>${ownerHtml}</div>
+          <div class="deal-card-top"><div class="deal-card-name">${escapeHtml(deal.name)}</div>${ownerHtml}</div>
           ${companyText ? `<div class="deal-card-company">${escapeHtml(companyText)}</div>` : ''}
           <div class="deal-card-footer">
-            <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>
+            <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>${typeBadge}
             <span class="deal-card-date">${formatDate(deal.createdAt)}</span>
           </div>
         `;
@@ -904,7 +904,7 @@
             <div class="contact-deal-item" onclick="window.__openDeal('${d.id}')">
               <div>
                 <div class="contact-deal-name">${escapeHtml(d.name)}</div>
-                <div style="font-size:12px; color:var(--text-muted); margin-top:2px">${d.type === 'one_time' ? formatCurrency(d.value) + '/one-time' : formatCurrency(d.value) + '/mo'}</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:2px">${formatCurrency(d.value)}${d.type === 'one_time' ? ' <span class="deal-type-badge one-time">One-Time</span>' : '/mo'}</div>
               </div>
               <span class="contact-deal-stage stage-${d.stage}">${getStageLabel(d.stage)}</span>
             </div>

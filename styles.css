@@ -772,6 +772,10 @@ body {
   color: var(--accent-amber);
 }
 
+.deal-card-footer .deal-type-badge {
+  margin-left: 4px;
+}
+
 /* ===== Pipeline Summary ===== */
 .pipeline-summary {
   display: flex;
