@@ -454,7 +454,7 @@
         const companyText = contact ? (contact.company || `${contact.firstName} ${contact.lastName}`) : '';
 
         const isOneTime = deal.type === 'one_time';
-        const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
+        const valueLabel = isOneTime ? formatCurrency(deal.value) + '/one-time' : formatCurrency(deal.value) + '/mo';
         const typeBadge = isOneTime ? '<span class="deal-type-badge one-time">One-Time</span>' : '';
         const ownerClass = deal.owner === 'Madison' ? ' madison' : '';
         const ownerHtml = deal.owner
@@ -904,7 +904,7 @@
             <div class="contact-deal-item" onclick="window.__openDeal('${d.id}')">
               <div>
                 <div class="contact-deal-name">${escapeHtml(d.name)}</div>
-                <div style="font-size:12px; color:var(--text-muted); margin-top:2px">${d.type === 'one_time' ? formatCurrency(d.value) + ' one-time' : formatCurrency(d.value) + '/mo'}</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:2px">${d.type === 'one_time' ? formatCurrency(d.value) + '/one-time' : formatCurrency(d.value) + '/mo'}</div>
               </div>
               <span class="contact-deal-stage stage-${d.stage}">${getStageLabel(d.stage)}</span>
             </div>
