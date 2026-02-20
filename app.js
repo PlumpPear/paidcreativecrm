@@ -1098,12 +1098,6 @@
       m.classList.toggle('reached', pct >= pos);
     });
 
-    // Toggle thrust visibility based on progress
-    const thrust = document.querySelector('.capsule-thrust');
-    if (thrust) {
-      thrust.style.opacity = pct > 0 ? '1' : '0.3';
-    }
-
     // Goal reached celebration
     const tracker = document.querySelector('.mission-tracker');
     if (tracker) {
