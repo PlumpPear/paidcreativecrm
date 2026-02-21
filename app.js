@@ -702,7 +702,7 @@
       document.querySelectorAll('.deal-type-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.type === dealType);
       });
-      document.getElementById('deal-value-label').textContent = dealType === 'one_time' ? 'Project Value ($) *' : 'Monthly Value ($) *';
+      document.getElementById('deal-value-label').textContent = dealType === 'one_time' ? 'Project Value ($)' : 'Monthly Value ($)';
       document.getElementById('deal-owner').value = deal.owner || '';
     } else {
       titleEl.textContent = 'New Deal';
@@ -715,7 +715,7 @@
       document.querySelectorAll('.deal-type-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.type === 'recurring');
       });
-      document.getElementById('deal-value-label').textContent = 'Monthly Value ($) *';
+      document.getElementById('deal-value-label').textContent = 'Monthly Value ($)';
     }
 
     modal.classList.add('show');
@@ -1128,7 +1128,7 @@
         btn.classList.add('active');
         const type = btn.dataset.type;
         document.getElementById('deal-type').value = type;
-        document.getElementById('deal-value-label').textContent = type === 'one_time' ? 'Project Value ($) *' : 'Monthly Value ($) *';
+        document.getElementById('deal-value-label').textContent = type === 'one_time' ? 'Project Value ($)' : 'Monthly Value ($)';
       });
     });
 
