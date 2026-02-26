@@ -116,7 +116,8 @@
     }
   }
 
-  const STAGES = ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
+  const DEFAULT_STAGES = ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
+  let STAGES = JSON.parse(localStorage.getItem('crm_stages') || 'null') || [...DEFAULT_STAGES];
   const STAGE_LABELS = {
     discovery: 'Discovery',
     qualification: 'Qualification',
@@ -125,7 +126,7 @@
     closed_won: 'Closed Won',
     closed_lost: 'Lost/Inactive'
   };
-  const STAGE_COLORS = {
+  const DEFAULT_STAGE_COLORS = {
     discovery: '#6366f1',
     qualification: '#8b5cf6',
     proposal: '#ec4899',
@@ -133,6 +134,22 @@
     closed_won: '#10b981',
     closed_lost: '#ef4444'
   };
+  const STAGE_COLORS = { ...DEFAULT_STAGE_COLORS };
+  const PALETTE = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6', '#a855f7', '#0ea5e9'];
+
+  function saveStages() {
+    localStorage.setItem('crm_stages', JSON.stringify(STAGES));
+    if (_useFirebase) {
+      db.collection('crm').doc('settings').set({ stages: STAGES }, { merge: true });
+    }
+  }
+
+  function getStageColor(stage) {
+    if (!STAGE_COLORS[stage]) {
+      STAGE_COLORS[stage] = PALETTE[Object.keys(STAGE_COLORS).length % PALETTE.length];
+    }
+    return STAGE_COLORS[stage];
+  }
   const AVATAR_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6'];
 
   // ===== Data Store =====
@@ -294,8 +311,13 @@
         if (data.stageLabels) {
           _cache.stageLabels = data.stageLabels;
           localStorage.setItem('crm_stage_labels', JSON.stringify(data.stageLabels));
-          renderPipeline();
         }
+        if (data.stages) {
+          STAGES = data.stages;
+          localStorage.setItem('crm_stages', JSON.stringify(STAGES));
+        }
+        buildPipelineBoard();
+        renderPipeline();
       }
     });
   }
@@ -342,6 +364,10 @@
             _cache.stageLabels = firestoreDocs.settings.stageLabels;
             localStorage.setItem('crm_stage_labels', JSON.stringify(firestoreDocs.settings.stageLabels));
           }
+          if (firestoreDocs.settings.stages) {
+            STAGES = firestoreDocs.settings.stages;
+            localStorage.setItem('crm_stages', JSON.stringify(STAGES));
+          }
         }
       } else if (_cache.deals.length > 0 || _cache.contacts.length > 0) {
         // Firestore is empty but localStorage has data — migrate it up
@@ -353,7 +379,8 @@
         batch.set(db.collection('crm').doc('settings'), {
           mrrGoal: _cache.mrrGoal,
           mrrHistory: _cache.mrrHistory,
-          stageLabels: _cache.stageLabels
+          stageLabels: _cache.stageLabels,
+          stages: STAGES
         });
         return batch.commit().then(() => {
           console.log('Migration complete — all data is now in Firestore.');
@@ -423,13 +450,60 @@
   }
 
   // ===== Pipeline =====
+  function buildPipelineBoard() {
+    const board = document.getElementById('pipeline-board');
+    board.innerHTML = '';
+
+    STAGES.forEach(stage => {
+      const color = getStageColor(stage);
+      const col = document.createElement('div');
+      col.className = 'pipeline-column';
+      col.dataset.stage = stage;
+      col.draggable = true;
+      col.innerHTML = `
+        <div class="column-header">
+          <div class="column-header-top">
+            <span class="stage-dot" style="background:${color}"></span>
+            <h3>${escapeHtml(getStageLabel(stage))}</h3>
+            <span class="deal-count" data-count="${stage}">0</span>
+            <button type="button" class="column-delete-btn" data-stage="${stage}" title="Delete stage">&times;</button>
+          </div>
+          <div class="column-total" data-total="${stage}">$0</div>
+        </div>
+        <div class="column-body" data-stage="${stage}"></div>
+      `;
+      board.appendChild(col);
+    });
+
+    // Add the "+ Add Stage" column
+    const addCol = document.createElement('div');
+    addCol.className = 'pipeline-column add-stage-column';
+    addCol.innerHTML = `<button type="button" class="add-stage-btn" title="Add stage">+ Add Stage</button>`;
+    board.appendChild(addCol);
+
+    initColumnRename();
+    initDragDrop();
+    initColumnDragDrop();
+    initColumnDelete();
+    initAddStage();
+  }
+
   function renderPipeline() {
     const deals = Store.getDeals();
+    // Rebuild board if columns don't match stages
+    const board = document.getElementById('pipeline-board');
+    const existingCols = board.querySelectorAll('.pipeline-column[data-stage]');
+    if (existingCols.length !== STAGES.length) {
+      buildPipelineBoard();
+    }
 
     STAGES.forEach(stage => {
       const col = document.querySelector(`.pipeline-column[data-stage="${stage}"]`);
+      if (!col) return;
       const h3 = col.querySelector('.column-header h3');
-      h3.textContent = getStageLabel(stage);
+      if (h3 && !h3.querySelector('.stage-rename-input')) {
+        h3.textContent = getStageLabel(stage);
+      }
       const body = document.querySelector(`.column-body[data-stage="${stage}"]`);
       const countEl = document.querySelector(`[data-count="${stage}"]`);
       const stageDeals = deals.filter(d => d.stage === stage)
@@ -542,10 +616,110 @@
     return div.innerHTML;
   }
 
+  // ===== Add / Delete / Reorder Stages =====
+  function initAddStage() {
+    const btn = document.querySelector('.add-stage-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const name = prompt('Enter a name for the new stage:');
+      if (!name || !name.trim()) return;
+      const id = name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      if (STAGES.includes(id)) {
+        alert('A stage with that name already exists.');
+        return;
+      }
+      STAGES.push(id);
+      STAGE_LABELS[id] = name.trim();
+      _cache.stageLabels[id] = name.trim();
+      localStorage.setItem('crm_stage_labels', JSON.stringify(_cache.stageLabels));
+      saveStages();
+      buildPipelineBoard();
+      renderPipeline();
+    });
+  }
+
+  function initColumnDelete() {
+    document.querySelectorAll('.column-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const stage = btn.dataset.stage;
+        const deals = Store.getDeals();
+        const stageDeals = deals.filter(d => d.stage === stage);
+        if (stageDeals.length > 0) {
+          alert(`Cannot delete "${getStageLabel(stage)}" — please remove all ${stageDeals.length} deal(s) from this stage first.`);
+          return;
+        }
+        if (!confirm(`Delete the "${getStageLabel(stage)}" stage?`)) return;
+        STAGES.splice(STAGES.indexOf(stage), 1);
+        delete STAGE_LABELS[stage];
+        delete STAGE_COLORS[stage];
+        delete _cache.stageLabels[stage];
+        localStorage.setItem('crm_stage_labels', JSON.stringify(_cache.stageLabels));
+        saveStages();
+        buildPipelineBoard();
+        renderPipeline();
+      });
+    });
+  }
+
+  // ===== Column Drag & Drop (reorder stages) =====
+  let draggedStage = null;
+
+  function initColumnDragDrop() {
+    document.querySelectorAll('.pipeline-column[data-stage]').forEach(col => {
+      col.addEventListener('dragstart', (e) => {
+        // Only treat as column drag if the drag started on the header area
+        if (e.target.classList.contains('deal-card')) return;
+        if (!e.target.classList.contains('pipeline-column')) return;
+        draggedStage = col.dataset.stage;
+        col.classList.add('column-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      col.addEventListener('dragend', () => {
+        col.classList.remove('column-dragging');
+        document.querySelectorAll('.pipeline-column').forEach(c => c.classList.remove('column-drag-over'));
+        draggedStage = null;
+      });
+
+      col.addEventListener('dragover', (e) => {
+        if (!draggedStage) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        col.classList.add('column-drag-over');
+      });
+
+      col.addEventListener('dragleave', (e) => {
+        if (!draggedStage) return;
+        if (!col.contains(e.relatedTarget)) {
+          col.classList.remove('column-drag-over');
+        }
+      });
+
+      col.addEventListener('drop', (e) => {
+        if (!draggedStage) return;
+        e.preventDefault();
+        col.classList.remove('column-drag-over');
+        const targetStage = col.dataset.stage;
+        if (targetStage === draggedStage) return;
+
+        const fromIdx = STAGES.indexOf(draggedStage);
+        const toIdx = STAGES.indexOf(targetStage);
+        STAGES.splice(fromIdx, 1);
+        STAGES.splice(toIdx, 0, draggedStage);
+        saveStages();
+        buildPipelineBoard();
+        renderPipeline();
+        draggedStage = null;
+      });
+    });
+  }
+
   // ===== Drag & Drop =====
   let draggedDealId = null;
 
   function handleDragStart(e) {
+    e.stopPropagation();
     draggedDealId = e.target.dataset.dealId;
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
@@ -645,7 +819,7 @@
         if (stageChanged) {
           Store.addActivity(
             `<strong>${deal.name}</strong> moved from ${getStageLabel(oldStage)} to ${getStageLabel(newStage)}`,
-            STAGE_COLORS[newStage]
+            getStageColor(newStage)
           );
           Store.updateMrrHistory();
         }
@@ -968,7 +1142,7 @@
       dealData.createdAt = new Date().toISOString();
       deals.push(dealData);
       Store.saveDeals(deals);
-      Store.addActivity(`<strong>${dealData.name}</strong> was added to ${getStageLabel(dealData.stage)}`, STAGE_COLORS[dealData.stage]);
+      Store.addActivity(`<strong>${dealData.name}</strong> was added to ${getStageLabel(dealData.stage)}`, getStageColor(dealData.stage));
     }
 
     Store.updateMrrHistory();
@@ -1227,7 +1401,7 @@
             dealsChanged = true;
             Store.addActivity(
               `<strong>${deal.name}</strong> moved from ${getStageLabel(oldStage)} to ${getStageLabel(sel.value)}`,
-              STAGE_COLORS[sel.value]
+              getStageColor(sel.value)
             );
           }
         });
@@ -1438,13 +1612,13 @@
   // ===== Initialize =====
   function init() {
     initNavigation();
-    initDragDrop();
     initEventListeners();
     initSearch();
-    initColumnRename();
+    buildPipelineBoard();
 
     // Load data from Firestore (if configured), then render
     loadInitialData().then(() => {
+      buildPipelineBoard();
       renderPipeline();
       Store.updateMrrHistory();
       initFirebaseListeners();
