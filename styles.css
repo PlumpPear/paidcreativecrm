@@ -1160,6 +1160,20 @@ form {
   cursor: pointer;
 }
 
+/* Follow Up Date - calendar icon on the left, white */
+input[type="date"]#deal-follow-up {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  margin-right: 8px;
+  margin-left: 0;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
