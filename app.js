@@ -471,6 +471,8 @@
             followUpClass = ' follow-up-today';
           } else if (followUp < today) {
             followUpClass = ' follow-up-overdue';
+          } else {
+            followUpClass = ' follow-up-upcoming';
           }
         }
 
