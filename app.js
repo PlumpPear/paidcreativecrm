@@ -461,8 +461,25 @@
           ? `<span class="deal-card-owner${ownerClass}" title="${escapeHtml(deal.owner)}">${escapeHtml(deal.owner[0])}</span>`
           : '';
 
+        // Follow-up date border logic
+        let followUpClass = '';
+        if (deal.followUpDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const followUp = new Date(deal.followUpDate + 'T00:00:00');
+          if (followUp.getTime() === today.getTime()) {
+            followUpClass = ' follow-up-today';
+          } else if (followUp < today) {
+            followUpClass = ' follow-up-overdue';
+          }
+        }
+
+        const followUpHtml = deal.followUpDate
+          ? `<div class="deal-card-follow-up${followUpClass ? (followUpClass.includes('overdue') ? ' overdue' : ' today') : ''}">Follow up: ${formatDate(deal.followUpDate + 'T00:00:00')}</div>`
+          : '';
+
         const card = document.createElement('div');
-        card.className = 'deal-card';
+        card.className = 'deal-card' + followUpClass;
         card.draggable = true;
         card.dataset.dealId = deal.id;
         card.innerHTML = `
@@ -472,6 +489,7 @@
             <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>${typeBadge}
             <span class="deal-card-date">${formatDate(deal.createdAt)}</span>
           </div>
+          ${followUpHtml}
         `;
 
         card.addEventListener('click', () => openDealModal(deal.id));
@@ -704,6 +722,7 @@
       });
       document.getElementById('deal-value-label').textContent = dealType === 'one_time' ? 'Project Value ($)' : 'Monthly Value ($)';
       document.getElementById('deal-owner').value = deal.owner || '';
+      document.getElementById('deal-follow-up').value = deal.followUpDate || '';
     } else {
       titleEl.textContent = 'New Deal';
       form.reset();
@@ -765,6 +784,7 @@
       stage: document.getElementById('deal-stage').value,
       owner: document.getElementById('deal-owner').value,
       contactId,
+      followUpDate: document.getElementById('deal-follow-up').value || null,
       notes: document.getElementById('deal-notes').value.trim(),
       updatedAt: new Date().toISOString()
     };

@@ -690,6 +690,35 @@ body {
   color: var(--text-muted);
 }
 
+/* ===== Follow Up Date Borders ===== */
+.deal-card.follow-up-today {
+  border-color: var(--accent-green);
+  border-width: 2px;
+}
+
+.deal-card.follow-up-overdue {
+  border-color: var(--accent-red);
+  border-width: 2px;
+}
+
+.deal-card-follow-up {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.deal-card-follow-up.today {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.deal-card-follow-up.overdue {
+  color: var(--accent-red);
+  font-weight: 600;
+}
+
 /* ===== Deal Type Toggle ===== */
 .deal-type-toggle {
   display: flex;
