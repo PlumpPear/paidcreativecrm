@@ -708,7 +708,7 @@ body {
 
 .deal-card-follow-up {
   font-size: 11px;
-  color: var(--text-muted);
+  color: #64748b;
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid var(--border);
