@@ -1226,6 +1226,13 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   font-weight: 500;
 }
 
+.deal-comment-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.deal-comment-edit,
 .deal-comment-delete {
   background: none;
   border: none;
@@ -1238,12 +1245,42 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   transition: opacity 0.15s ease, color 0.15s ease;
 }
 
+.deal-comment-edit {
+  font-size: 14px;
+}
+
+.deal-comment:hover .deal-comment-edit,
 .deal-comment:hover .deal-comment-delete {
   opacity: 1;
 }
 
+.deal-comment-edit:hover {
+  color: var(--accent-indigo);
+}
+
 .deal-comment-delete:hover {
   color: var(--accent-red);
+}
+
+.deal-comment-edit-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent-indigo);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  margin-top: 4px;
+}
+
+.deal-comment-edit-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  justify-content: flex-end;
 }
 
 .deal-comment-text {

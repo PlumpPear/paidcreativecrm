@@ -687,10 +687,13 @@
       return;
     }
     list.innerHTML = _modalComments.map((c, i) => `
-      <div class="deal-comment">
+      <div class="deal-comment" data-idx="${i}">
         <div class="deal-comment-header">
-          <span class="deal-comment-date">${formatDate(c.date)}</span>
-          <button type="button" class="deal-comment-delete" data-idx="${i}" title="Delete comment">&times;</button>
+          <span class="deal-comment-date">${formatDate(c.date)}${c.editedAt ? ' (edited)' : ''}</span>
+          <div class="deal-comment-actions">
+            <button type="button" class="deal-comment-edit" data-idx="${i}" title="Edit comment">&#9998;</button>
+            <button type="button" class="deal-comment-delete" data-idx="${i}" title="Delete comment">&times;</button>
+          </div>
         </div>
         <div class="deal-comment-text">${escapeHtml(c.text)}</div>
       </div>
@@ -704,6 +707,74 @@
         renderDealComments();
         saveDealComments();
       });
+    });
+
+    list.querySelectorAll('.deal-comment-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const idx = parseInt(btn.dataset.idx, 10);
+        startEditComment(idx);
+      });
+    });
+  }
+
+  function startEditComment(idx) {
+    const comment = _modalComments[idx];
+    const commentEl = document.querySelector(`.deal-comment[data-idx="${idx}"]`);
+    if (!commentEl) return;
+
+    const textEl = commentEl.querySelector('.deal-comment-text');
+    const actionsEl = commentEl.querySelector('.deal-comment-actions');
+    actionsEl.style.display = 'none';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'deal-comment-edit-input';
+    textarea.value = comment.text;
+    textarea.rows = 2;
+
+    const btnWrap = document.createElement('div');
+    btnWrap.className = 'deal-comment-edit-btns';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn btn-primary btn-sm';
+    saveBtn.textContent = 'Save';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary btn-sm';
+    cancelBtn.textContent = 'Cancel';
+
+    btnWrap.appendChild(saveBtn);
+    btnWrap.appendChild(cancelBtn);
+
+    textEl.style.display = 'none';
+    commentEl.appendChild(textarea);
+    commentEl.appendChild(btnWrap);
+    textarea.focus();
+
+    saveBtn.addEventListener('click', () => {
+      const newText = textarea.value.trim();
+      if (newText && newText !== comment.text) {
+        _modalComments[idx].text = newText;
+        _modalComments[idx].editedAt = new Date().toISOString();
+        saveDealComments();
+      }
+      renderDealComments();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      renderDealComments();
+    });
+
+    textarea.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey) {
+        ev.preventDefault();
+        saveBtn.click();
+      }
+      if (ev.key === 'Escape') {
+        cancelBtn.click();
+      }
     });
   }
 
