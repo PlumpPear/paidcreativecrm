@@ -669,7 +669,7 @@ body {
 
 .deal-card-company {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
@@ -708,20 +708,10 @@ body {
 
 .deal-card-follow-up {
   font-size: 11px;
-  color: #64748b;
+  color: var(--text-muted);
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid var(--border);
-}
-
-.deal-card-follow-up.today {
-  color: #64748b;
-  font-weight: 600;
-}
-
-.deal-card-follow-up.overdue {
-  color: #64748b;
-  font-weight: 600;
 }
 
 /* ===== Deal Type Toggle ===== */
