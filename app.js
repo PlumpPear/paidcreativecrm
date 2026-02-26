@@ -474,9 +474,21 @@
           }
         }
 
-        const followUpHtml = deal.followUpDate
-          ? `<div class="deal-card-follow-up${followUpClass ? (followUpClass.includes('overdue') ? ' overdue' : ' today') : ''}">Follow up: ${formatDate(deal.followUpDate + 'T00:00:00')}</div>`
-          : '';
+        let followUpHtml = '';
+        if (deal.followUpDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const fuDate = new Date(deal.followUpDate + 'T00:00:00');
+          const diffDays = Math.round((fuDate - today) / (1000 * 60 * 60 * 24));
+          let daysText;
+          if (diffDays === 0) daysText = 'Today';
+          else if (diffDays === 1) daysText = '1 day';
+          else if (diffDays > 1) daysText = `${diffDays} days`;
+          else if (diffDays === -1) daysText = '1 day ago';
+          else daysText = `${Math.abs(diffDays)} days ago`;
+          const cls = followUpClass ? (followUpClass.includes('overdue') ? ' overdue' : ' today') : '';
+          followUpHtml = `<div class="deal-card-follow-up${cls}">Follow up: ${formatDate(deal.followUpDate + 'T00:00:00')} | ${daysText}</div>`;
+        }
 
         const card = document.createElement('div');
         card.className = 'deal-card' + followUpClass;
