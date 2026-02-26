@@ -501,7 +501,6 @@
           ${companyText ? `<div class="deal-card-company">${escapeHtml(companyText)}</div>` : ''}
           <div class="deal-card-footer">
             <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>${typeBadge}
-            <span class="deal-card-date">${formatDate(deal.createdAt)}</span>
           </div>
           ${followUpHtml}
         `;
