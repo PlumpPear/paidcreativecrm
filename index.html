@@ -266,8 +266,12 @@
           <input type="date" id="deal-follow-up">
         </div>
         <div class="form-group">
-          <label for="deal-notes">Notes</label>
-          <textarea id="deal-notes" rows="3" placeholder="Add deal notes..."></textarea>
+          <label>Comments</label>
+          <div class="deal-comments-list" id="deal-comments-list"></div>
+          <div class="deal-comment-input-wrap">
+            <textarea id="deal-comment-input" rows="2" placeholder="Add a comment..."></textarea>
+            <button type="button" class="btn btn-primary btn-sm" id="deal-add-comment">Post</button>
+          </div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="deal-cancel">Cancel</button>

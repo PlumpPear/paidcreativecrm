@@ -677,6 +677,73 @@
     }
   }
 
+  // ===== Deal Comments =====
+  let _modalComments = [];
+
+  function renderDealComments() {
+    const list = document.getElementById('deal-comments-list');
+    if (_modalComments.length === 0) {
+      list.innerHTML = '<div class="deal-comments-empty">No comments yet</div>';
+      return;
+    }
+    list.innerHTML = _modalComments.map((c, i) => `
+      <div class="deal-comment">
+        <div class="deal-comment-header">
+          <span class="deal-comment-date">${formatDate(c.date)}</span>
+          <button type="button" class="deal-comment-delete" data-idx="${i}" title="Delete comment">&times;</button>
+        </div>
+        <div class="deal-comment-text">${escapeHtml(c.text)}</div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.deal-comment-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const idx = parseInt(btn.dataset.idx, 10);
+        _modalComments.splice(idx, 1);
+        renderDealComments();
+        saveDealComments();
+      });
+    });
+  }
+
+  function addDealComment() {
+    const input = document.getElementById('deal-comment-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    _modalComments.unshift({
+      text,
+      date: new Date().toISOString()
+    });
+    input.value = '';
+    renderDealComments();
+    saveDealComments();
+  }
+
+  function saveDealComments() {
+    const id = document.getElementById('deal-id').value;
+    if (!id) return;
+    const deals = Store.getDeals();
+    const deal = deals.find(d => d.id === id);
+    if (deal) {
+      deal.comments = _modalComments;
+      deal.updatedAt = new Date().toISOString();
+      Store.saveDeals(deals);
+    }
+  }
+
+  function getDealComments(deal) {
+    // Migrate legacy notes to comments
+    if (deal.comments && deal.comments.length > 0) {
+      return deal.comments;
+    }
+    if (deal.notes && deal.notes.trim()) {
+      return [{ text: deal.notes.trim(), date: deal.createdAt || new Date().toISOString() }];
+    }
+    return [];
+  }
+
   function openDealModal(dealId) {
     const modal = document.getElementById('deal-modal');
     const form = document.getElementById('deal-form');
@@ -700,6 +767,9 @@
     // Reset inline new-contact fields
     resetDealNewContactFields();
 
+    // Reset comment input
+    document.getElementById('deal-comment-input').value = '';
+
     if (dealId) {
       const deals = Store.getDeals();
       const deal = deals.find(d => d.id === dealId);
@@ -711,7 +781,6 @@
       document.getElementById('deal-value').value = deal.value;
       document.getElementById('deal-stage').value = deal.stage;
       document.getElementById('deal-contact').value = deal.contactId || '';
-      document.getElementById('deal-notes').value = deal.notes || '';
       deleteBtn.style.display = 'inline-flex';
 
       // Set deal type
@@ -723,6 +792,9 @@
       document.getElementById('deal-value-label').textContent = dealType === 'one_time' ? 'Project Value ($)' : 'Monthly Value ($)';
       document.getElementById('deal-owner').value = deal.owner || '';
       document.getElementById('deal-follow-up').value = deal.followUpDate || '';
+
+      // Load comments
+      _modalComments = getDealComments(deal);
     } else {
       titleEl.textContent = 'New Deal';
       form.reset();
@@ -735,8 +807,11 @@
         b.classList.toggle('active', b.dataset.type === 'recurring');
       });
       document.getElementById('deal-value-label').textContent = 'Monthly Value ($)';
+
+      _modalComments = [];
     }
 
+    renderDealComments();
     modal.classList.add('show');
   }
 
@@ -777,6 +852,13 @@
       renderContacts();
     }
 
+    // If there's text in the comment input, add it as a comment before saving
+    const pendingComment = document.getElementById('deal-comment-input').value.trim();
+    if (pendingComment) {
+      _modalComments.unshift({ text: pendingComment, date: new Date().toISOString() });
+      document.getElementById('deal-comment-input').value = '';
+    }
+
     const dealData = {
       name: document.getElementById('deal-name').value.trim(),
       value: parseFloat(document.getElementById('deal-value').value) || 0,
@@ -785,7 +867,7 @@
       owner: document.getElementById('deal-owner').value,
       contactId,
       followUpDate: document.getElementById('deal-follow-up').value || null,
-      notes: document.getElementById('deal-notes').value.trim(),
+      comments: _modalComments,
       updatedAt: new Date().toISOString()
     };
 
@@ -1140,6 +1222,13 @@
     document.getElementById('deal-form').addEventListener('submit', saveDeal);
     document.getElementById('deal-delete').addEventListener('click', deleteDeal);
     document.getElementById('deal-new-contact-toggle').addEventListener('click', toggleDealNewContact);
+    document.getElementById('deal-add-comment').addEventListener('click', addDealComment);
+    document.getElementById('deal-comment-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        addDealComment();
+      }
+    });
 
     // Deal type toggle
     document.querySelectorAll('.deal-type-btn').forEach(btn => {
