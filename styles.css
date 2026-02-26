@@ -1153,6 +1153,7 @@ form {
 
 .form-group select {
   cursor: pointer;
+  padding-right: 24px;
 }
 
 /* Follow Up Date - calendar icon on the left, white */
