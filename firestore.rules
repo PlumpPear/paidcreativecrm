@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only allow access to the crm collection used by the app
+    // Documents: deals, contacts, activities, settings
+    match /crm/{document} {
+      allow read, write: if true;
+    }
+  }
+}
