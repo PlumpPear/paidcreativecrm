@@ -1415,6 +1415,263 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   background: var(--text-muted);
 }
 
+/* ===== Google Sign-In Button ===== */
+.btn-google {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-google:hover {
+  background: #f7f8f8;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* ===== Gmail User Section (Sidebar) ===== */
+.gmail-user-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.gmail-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.gmail-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gmail-user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.gmail-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gmail-user-email {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gmail-user-section .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ===== Deal Card Email Badge ===== */
+.deal-card-email-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.deal-card-email-badge.unanswered {
+  color: #f87171;
+}
+
+.deal-card-email-badge.unanswered svg {
+  stroke: #f87171;
+}
+
+/* ===== Email Section in Deal Modal ===== */
+.gmail-email-section {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.email-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.email-toggle-arrow {
+  transition: transform 0.2s ease;
+}
+
+.email-section-label.expanded .email-toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.email-thread-container {
+  margin-top: 10px;
+}
+
+.email-loading {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 12px;
+  text-align: center;
+}
+
+.email-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 12px;
+  text-align: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.email-thread-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.email-thread-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.email-thread-item:hover {
+  border-color: var(--accent-indigo);
+}
+
+.email-thread-item.from-contact {
+  border-left: 3px solid #f87171;
+}
+
+.email-thread-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.email-thread-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+.email-thread-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.email-msg-count {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.email-thread-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.email-thread-snippet {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Expanded thread messages */
+.email-thread-messages {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.email-message {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  max-width: 85%;
+}
+
+.email-message.received {
+  background: var(--bg-hover);
+  margin-right: auto;
+}
+
+.email-message.sent {
+  background: rgba(99, 102, 241, 0.15);
+  margin-left: auto;
+}
+
+.email-message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.email-message-from {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.email-message-date {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.email-message-body {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
   .sidebar {
@@ -1425,7 +1682,8 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   .sidebar-brand h1,
   .sidebar-brand .subtitle,
   .nav-link span,
-  .sidebar-footer {
+  .sidebar-footer,
+  .gmail-user-section {
     display: none;
   }
 

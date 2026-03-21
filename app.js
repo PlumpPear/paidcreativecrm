@@ -29,48 +29,228 @@
     db = firebase.firestore();
   }
 
-  // ===== Password Gate =====
-  const APP_PASSWORD = 'tothemoon';
-  const AUTH_KEY = 'crm_auth_token';
-  const AUTH_DURATION_DAYS = 30;
+  // ===== Auth Gate (Google Sign-In) =====
+  // Add team member emails here to restrict access
+  const ALLOWED_EMAILS = [
+    // e.g. 'sam@paidcreative.com',
+    // e.g. 'madison@paidcreative.com',
+    // Leave empty to allow any Google account
+  ];
 
-  function isAuthenticated() {
-    const token = localStorage.getItem(AUTH_KEY);
-    if (!token) return false;
-    const expiry = parseInt(token, 10);
-    if (isNaN(expiry) || Date.now() > expiry) {
-      localStorage.removeItem(AUTH_KEY);
-      return false;
-    }
-    return true;
-  }
+  let _gmailAccessToken = null;
+  let _gmailUserEmail = null;
+  let _currentUser = null;
 
-  function setAuthenticated() {
-    const expiry = Date.now() + AUTH_DURATION_DAYS * 24 * 60 * 60 * 1000;
-    localStorage.setItem(AUTH_KEY, expiry.toString());
-  }
-
-  function initPasswordGate(onSuccess) {
+  function initAuthGate(onSuccess) {
     const gate = document.getElementById('password-gate');
-    if (isAuthenticated()) {
-      gate.classList.add('hidden');
-      onSuccess();
-      return;
-    }
-    document.getElementById('password-form').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var input = document.getElementById('password-input');
-      var error = document.getElementById('password-error');
-      if (input.value === APP_PASSWORD) {
-        setAuthenticated();
+    const errorEl = document.getElementById('auth-error');
+
+    // Listen for auth state changes
+    firebase.auth().onAuthStateChanged(function (user) {
+      if (user) {
+        // Check whitelist
+        if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(user.email.toLowerCase())) {
+          errorEl.textContent = 'Access denied. Your email is not authorized.';
+          firebase.auth().signOut();
+          return;
+        }
+        _currentUser = user;
+        _gmailUserEmail = user.email;
         gate.classList.add('hidden');
+        updateUserDisplay(user);
         onSuccess();
       } else {
-        error.textContent = 'Incorrect password. Try again.';
-        input.value = '';
-        input.focus();
+        _currentUser = null;
+        _gmailAccessToken = null;
+        _gmailUserEmail = null;
+        gate.classList.remove('hidden');
       }
     });
+
+    // Google Sign-In button
+    document.getElementById('btn-google-signin').addEventListener('click', function () {
+      errorEl.textContent = '';
+      var provider = new firebase.auth.GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+      firebase.auth().signInWithPopup(provider).then(function (result) {
+        // Store the Google OAuth access token for Gmail API calls
+        if (result.credential) {
+          _gmailAccessToken = result.credential.accessToken;
+          sessionStorage.setItem('gmail_access_token', _gmailAccessToken);
+        }
+      }).catch(function (error) {
+        errorEl.textContent = error.message || 'Sign-in failed. Please try again.';
+      });
+    });
+
+    // Sign-out button
+    document.getElementById('btn-sign-out').addEventListener('click', function () {
+      firebase.auth().signOut();
+      sessionStorage.removeItem('gmail_access_token');
+      _gmailAccessToken = null;
+      _gmailUserEmail = null;
+      _currentUser = null;
+      _emailStatusCache.clear();
+      document.getElementById('gmail-user-section').style.display = 'none';
+    });
+
+    // Restore token from session if still valid
+    var savedToken = sessionStorage.getItem('gmail_access_token');
+    if (savedToken) {
+      _gmailAccessToken = savedToken;
+    }
+  }
+
+  function updateUserDisplay(user) {
+    var section = document.getElementById('gmail-user-section');
+    section.style.display = '';
+    document.getElementById('gmail-user-name').textContent = user.displayName || '';
+    document.getElementById('gmail-user-email').textContent = user.email || '';
+    var avatar = document.getElementById('gmail-user-avatar');
+    if (user.photoURL) {
+      avatar.src = user.photoURL;
+      avatar.style.display = '';
+    } else {
+      avatar.style.display = 'none';
+    }
+  }
+
+  // ===== Gmail API Helpers =====
+  async function gmailFetch(url) {
+    if (!_gmailAccessToken) return null;
+    var resp = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + _gmailAccessToken }
+    });
+    if (resp.status === 401) {
+      // Token expired — need re-auth
+      _gmailAccessToken = null;
+      sessionStorage.removeItem('gmail_access_token');
+      return null;
+    }
+    if (!resp.ok) return null;
+    return resp.json();
+  }
+
+  async function fetchThreadsForContact(email) {
+    if (!email || !_gmailAccessToken) return [];
+    var q = encodeURIComponent('from:' + email + ' OR to:' + email);
+    var data = await gmailFetch('https://www.googleapis.com/gmail/v1/users/me/threads?q=' + q + '&maxResults=10');
+    if (!data || !data.threads) return [];
+    return data.threads;
+  }
+
+  async function fetchThreadDetail(threadId) {
+    return gmailFetch('https://www.googleapis.com/gmail/v1/users/me/threads/' + threadId + '?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date');
+  }
+
+  async function fetchFullMessage(messageId) {
+    return gmailFetch('https://www.googleapis.com/gmail/v1/users/me/messages/' + messageId + '?format=full');
+  }
+
+  function getHeader(message, name) {
+    if (!message || !message.payload || !message.payload.headers) return '';
+    var header = message.payload.headers.find(function (h) { return h.name.toLowerCase() === name.toLowerCase(); });
+    return header ? header.value : '';
+  }
+
+  function extractEmail(fromHeader) {
+    var match = fromHeader.match(/<([^>]+)>/);
+    return match ? match[1].toLowerCase() : fromHeader.toLowerCase().trim();
+  }
+
+  function decodeBase64Url(str) {
+    if (!str) return '';
+    var base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    try {
+      return decodeURIComponent(escape(atob(base64)));
+    } catch (e) {
+      try { return atob(base64); } catch (e2) { return ''; }
+    }
+  }
+
+  function getMessageBody(message) {
+    if (!message || !message.payload) return '';
+    // Check for simple body
+    if (message.payload.body && message.payload.body.data) {
+      return decodeBase64Url(message.payload.body.data);
+    }
+    // Check parts for text/plain or text/html
+    var parts = message.payload.parts || [];
+    var plainPart = parts.find(function (p) { return p.mimeType === 'text/plain'; });
+    if (plainPart && plainPart.body && plainPart.body.data) {
+      return decodeBase64Url(plainPart.body.data);
+    }
+    var htmlPart = parts.find(function (p) { return p.mimeType === 'text/html'; });
+    if (htmlPart && htmlPart.body && htmlPart.body.data) {
+      var html = decodeBase64Url(htmlPart.body.data);
+      // Strip HTML tags for display
+      var tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+    return '';
+  }
+
+  // ===== Email Status Monitoring =====
+  var _emailStatusCache = new Map();
+  var _emailMonitorInterval = null;
+  var _threadCache = new Map();
+  var THREAD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  async function checkEmailStatusForContact(contactEmail) {
+    if (!contactEmail || !_gmailAccessToken) return null;
+    var email = contactEmail.toLowerCase().trim();
+    var threads = await fetchThreadsForContact(email);
+    if (!threads || threads.length === 0) {
+      _emailStatusCache.set(email, { unanswered: false, noThreads: true });
+      return _emailStatusCache.get(email);
+    }
+    // Get most recent thread detail
+    var thread = await fetchThreadDetail(threads[0].id);
+    if (!thread || !thread.messages || thread.messages.length === 0) {
+      _emailStatusCache.set(email, { unanswered: false, noThreads: true });
+      return _emailStatusCache.get(email);
+    }
+    var lastMsg = thread.messages[thread.messages.length - 1];
+    var fromEmail = extractEmail(getHeader(lastMsg, 'From'));
+    var unanswered = fromEmail === email && fromEmail !== (_gmailUserEmail || '').toLowerCase();
+    var snippet = threads[0].snippet || '';
+    _emailStatusCache.set(email, { unanswered: unanswered, snippet: snippet, noThreads: false });
+    return _emailStatusCache.get(email);
+  }
+
+  async function checkAllEmailStatuses() {
+    if (!_gmailAccessToken) return;
+    var deals = Store.getDeals();
+    var contacts = Store.getContacts();
+    var activeStages = STAGES.filter(function (s) { return s !== 'closed_won' && s !== 'closed_lost'; });
+    var activeDeals = deals.filter(function (d) { return activeStages.includes(d.stage); });
+
+    for (var i = 0; i < activeDeals.length; i++) {
+      var deal = activeDeals[i];
+      if (!deal.contactId) continue;
+      var contact = contacts.find(function (c) { return c.id === deal.contactId; });
+      if (!contact || !contact.email) continue;
+      await checkEmailStatusForContact(contact.email);
+      // Throttle: 100ms between requests
+      if (i < activeDeals.length - 1) {
+        await new Promise(function (r) { setTimeout(r, 100); });
+      }
+    }
+    renderPipeline();
+  }
+
+  function startEmailMonitor() {
+    if (_emailMonitorInterval) clearInterval(_emailMonitorInterval);
+    // Check immediately
+    checkAllEmailStatuses();
+    // Then every 15 minutes
+    _emailMonitorInterval = setInterval(checkAllEmailStatuses, 15 * 60 * 1000);
+  }
+
+  function getEmailStatusForContact(contactEmail) {
+    if (!contactEmail) return null;
+    return _emailStatusCache.get(contactEmail.toLowerCase().trim()) || null;
   }
 
   // ===== Constants =====
@@ -496,6 +676,15 @@
         card.className = 'deal-card' + followUpClass;
         card.draggable = true;
         card.dataset.dealId = deal.id;
+        // Email status badge
+        let emailBadgeHtml = '';
+        if (_gmailAccessToken && contact && contact.email) {
+          const emailStatus = getEmailStatusForContact(contact.email);
+          if (emailStatus && emailStatus.unanswered) {
+            emailBadgeHtml = `<div class="deal-card-email-badge unanswered"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Needs reply</div>`;
+          }
+        }
+
         card.innerHTML = `
           <div class="deal-card-top"><div class="deal-card-name">${escapeHtml(deal.name)}</div>${ownerHtml}</div>
           ${companyText ? `<div class="deal-card-company">${escapeHtml(companyText)}</div>` : ''}
@@ -503,6 +692,7 @@
             <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>${typeBadge}
           </div>
           ${followUpHtml}
+          ${emailBadgeHtml}
         `;
 
         card.addEventListener('click', () => openDealModal(deal.id));
@@ -896,7 +1086,163 @@
     }
 
     renderDealComments();
+    loadDealEmails(dealId);
     modal.classList.add('show');
+  }
+
+  // ===== Deal Email Thread Viewer =====
+  async function loadDealEmails(dealId) {
+    var emailSection = document.getElementById('deal-email-section');
+    var threadContainer = document.getElementById('deal-email-thread');
+    var threadList = document.getElementById('deal-email-thread-list');
+    var loadingEl = document.getElementById('deal-email-loading');
+
+    // Hide email section by default
+    emailSection.style.display = 'none';
+    threadContainer.style.display = 'none';
+
+    if (!_gmailAccessToken || !dealId) return;
+
+    var deals = Store.getDeals();
+    var deal = deals.find(function (d) { return d.id === dealId; });
+    if (!deal || !deal.contactId) return;
+
+    var contacts = Store.getContacts();
+    var contact = contacts.find(function (c) { return c.id === deal.contactId; });
+    if (!contact || !contact.email) return;
+
+    // Show the email section
+    emailSection.style.display = '';
+
+    // Set up toggle
+    var toggle = document.getElementById('deal-email-toggle');
+    toggle.onclick = function () {
+      var isHidden = threadContainer.style.display === 'none';
+      threadContainer.style.display = isHidden ? '' : 'none';
+      toggle.classList.toggle('expanded', isHidden);
+      if (isHidden && threadList.innerHTML === '') {
+        fetchAndRenderEmails(contact.email, threadList, loadingEl);
+      }
+    };
+  }
+
+  async function fetchAndRenderEmails(contactEmail, listEl, loadingEl) {
+    loadingEl.style.display = '';
+    listEl.innerHTML = '';
+
+    var threads = await fetchThreadsForContact(contactEmail);
+    if (!threads || threads.length === 0) {
+      loadingEl.style.display = 'none';
+      listEl.innerHTML = '<div class="email-empty">No emails found with this contact</div>';
+      return;
+    }
+
+    // Load first 5 threads with details
+    var threadDetails = [];
+    for (var i = 0; i < Math.min(threads.length, 5); i++) {
+      var detail = await fetchThreadDetail(threads[i].id);
+      if (detail) threadDetails.push(detail);
+    }
+
+    loadingEl.style.display = 'none';
+
+    if (threadDetails.length === 0) {
+      listEl.innerHTML = '<div class="email-empty">No emails found with this contact</div>';
+      return;
+    }
+
+    listEl.innerHTML = threadDetails.map(function (thread) {
+      var firstMsg = thread.messages[0];
+      var lastMsg = thread.messages[thread.messages.length - 1];
+      var subject = getHeader(firstMsg, 'Subject') || '(no subject)';
+      var date = getHeader(lastMsg, 'Date');
+      var fromEmail = extractEmail(getHeader(lastMsg, 'From'));
+      var isFromContact = fromEmail === contactEmail.toLowerCase();
+      var snippet = thread.messages[thread.messages.length - 1].snippet || '';
+      var msgCount = thread.messages.length;
+
+      var dateStr = '';
+      try {
+        dateStr = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } catch (e) {
+        dateStr = date;
+      }
+
+      return '<div class="email-thread-item' + (isFromContact ? ' from-contact' : '') + '" data-thread-id="' + thread.id + '">' +
+        '<div class="email-thread-header">' +
+          '<div class="email-thread-subject">' + escapeHtml(subject) + '</div>' +
+          '<div class="email-thread-meta">' +
+            (msgCount > 1 ? '<span class="email-msg-count">' + msgCount + '</span>' : '') +
+            '<span class="email-thread-date">' + dateStr + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="email-thread-snippet">' + escapeHtml(snippet) + '</div>' +
+      '</div>';
+    }).join('');
+
+    // Click to expand thread
+    listEl.querySelectorAll('.email-thread-item').forEach(function (item) {
+      item.addEventListener('click', function () {
+        var threadId = item.dataset.threadId;
+        toggleThreadExpand(item, threadId);
+      });
+    });
+  }
+
+  async function toggleThreadExpand(itemEl, threadId) {
+    var existing = itemEl.querySelector('.email-thread-messages');
+    if (existing) {
+      existing.remove();
+      itemEl.classList.remove('expanded');
+      return;
+    }
+
+    itemEl.classList.add('expanded');
+    var messagesDiv = document.createElement('div');
+    messagesDiv.className = 'email-thread-messages';
+    messagesDiv.innerHTML = '<div class="email-loading">Loading messages...</div>';
+    itemEl.appendChild(messagesDiv);
+
+    // Fetch full thread
+    var thread = await fetchThreadDetail(threadId);
+    if (!thread || !thread.messages) {
+      messagesDiv.innerHTML = '<div class="email-empty">Could not load messages</div>';
+      return;
+    }
+
+    // Load full messages for body content
+    var fullMessages = [];
+    for (var i = 0; i < thread.messages.length; i++) {
+      var full = await fetchFullMessage(thread.messages[i].id);
+      if (full) fullMessages.push(full);
+    }
+
+    messagesDiv.innerHTML = fullMessages.map(function (msg) {
+      var from = getHeader(msg, 'From');
+      var fromAddr = extractEmail(from);
+      var isSent = fromAddr === (_gmailUserEmail || '').toLowerCase();
+      var date = getHeader(msg, 'Date');
+      var body = getMessageBody(msg);
+      // Truncate very long messages
+      if (body.length > 1000) body = body.substring(0, 1000) + '...';
+
+      var dateStr = '';
+      try {
+        dateStr = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      } catch (e) {
+        dateStr = date;
+      }
+
+      var displayFrom = from.replace(/<[^>]+>/, '').trim() || fromAddr;
+
+      return '<div class="email-message ' + (isSent ? 'sent' : 'received') + '">' +
+        '<div class="email-message-header">' +
+          '<span class="email-message-from">' + escapeHtml(displayFrom) + '</span>' +
+          '<span class="email-message-date">' + dateStr + '</span>' +
+        '</div>' +
+        '<div class="email-message-body">' + escapeHtml(body) + '</div>' +
+      '</div>';
+    }).join('');
   }
 
   function closeDealModal() {
@@ -1447,10 +1793,14 @@
       renderPipeline();
       Store.updateMrrHistory();
       initFirebaseListeners();
+      // Start Gmail email monitoring if token available
+      if (_gmailAccessToken) {
+        startEmailMonitor();
+      }
     });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    initPasswordGate(init);
+    initAuthGate(init);
   });
 })();

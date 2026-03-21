@@ -8,16 +8,16 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Password Gate -->
+  <!-- Auth Gate -->
   <div class="password-gate" id="password-gate">
     <div class="password-gate-box">
       <div class="password-gate-logo">PaidCreative <span>CRM</span></div>
-      <p class="password-gate-subtitle">Enter password to continue</p>
-      <form id="password-form">
-        <input type="password" id="password-input" class="password-gate-input" placeholder="Password" autocomplete="off" autofocus>
-        <div class="password-gate-error" id="password-error"></div>
-        <button type="submit" class="btn btn-primary password-gate-btn">Unlock</button>
-      </form>
+      <p class="password-gate-subtitle">Sign in to continue</p>
+      <button type="button" class="btn-google" id="btn-google-signin">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Sign in with Google
+      </button>
+      <div class="password-gate-error" id="auth-error"></div>
     </div>
   </div>
 
@@ -36,6 +36,16 @@
         Contacts
       </a></li>
     </ul>
+    <div class="gmail-user-section" id="gmail-user-section" style="display:none">
+      <div class="gmail-user-info">
+        <img class="gmail-user-avatar" id="gmail-user-avatar" src="" alt="">
+        <div class="gmail-user-details">
+          <div class="gmail-user-name" id="gmail-user-name"></div>
+          <div class="gmail-user-email" id="gmail-user-email"></div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-sm btn-secondary" id="btn-sign-out">Sign Out</button>
+    </div>
     <div class="sidebar-footer">
       <div class="mission-tracker">
         <div class="mission-header">
@@ -277,6 +287,16 @@
             <button type="button" class="btn btn-primary btn-sm" id="deal-add-comment">Post</button>
           </div>
         </div>
+        <div class="form-group gmail-email-section" id="deal-email-section" style="display:none">
+          <label class="email-section-label" id="deal-email-toggle">
+            Emails
+            <svg class="email-toggle-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </label>
+          <div class="email-thread-container" id="deal-email-thread" style="display:none">
+            <div class="email-loading" id="deal-email-loading">Loading emails...</div>
+            <div class="email-thread-list" id="deal-email-thread-list"></div>
+          </div>
+        </div>
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="deal-cancel">Cancel</button>
           <button type="button" class="btn btn-danger" id="deal-delete" style="display:none">Delete</button>
@@ -340,6 +360,7 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
