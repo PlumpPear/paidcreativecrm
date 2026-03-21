@@ -132,8 +132,10 @@
     // Refresh email statuses button
     if (refreshBtn) {
       refreshBtn.addEventListener('click', function () {
+        if (refreshBtn.classList.contains('spinning')) return;
         refreshBtn.classList.add('spinning');
-        checkAllEmailStatuses().finally(function () {
+        var minSpin = new Promise(function (r) { setTimeout(r, 800); });
+        Promise.all([checkAllEmailStatuses(), minSpin]).finally(function () {
           refreshBtn.classList.remove('spinning');
         });
       });
