@@ -116,6 +116,28 @@
     } else {
       avatar.style.display = 'none';
     }
+    // Show refresh button when signed in
+    var refreshBtn = document.getElementById('btn-refresh-emails');
+    if (refreshBtn) refreshBtn.style.display = '';
+
+    // Profile dropdown toggle
+    avatar.addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('user-profile-dropdown').classList.toggle('open');
+    });
+    document.addEventListener('click', function () {
+      document.getElementById('user-profile-dropdown').classList.remove('open');
+    });
+
+    // Refresh email statuses button
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function () {
+        refreshBtn.classList.add('spinning');
+        checkAllEmailStatuses().finally(function () {
+          refreshBtn.classList.remove('spinning');
+        });
+      });
+    }
   }
 
   // ===== Gmail API Helpers =====
