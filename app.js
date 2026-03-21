@@ -37,6 +37,9 @@
     // Leave empty to allow any Google account
   ];
 
+  // Team members whose Gmail inboxes are checked for "Needs reply"
+  const TEAM_EMAILS = ['sam@paidcreative.com', 'madison@paidcreative.com'];
+
   let _gmailAccessToken = null;
   let _gmailUserEmail = null;
   let _currentUser = null;
@@ -196,27 +199,40 @@
   var _emailMonitorInterval = null;
   var _threadCache = new Map();
   var THREAD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  var _firestoreEmailStatuses = {};
 
   async function checkEmailStatusForContact(contactEmail) {
     if (!contactEmail || !_gmailAccessToken) return null;
     var email = contactEmail.toLowerCase().trim();
     var threads = await fetchThreadsForContact(email);
+    var result;
     if (!threads || threads.length === 0) {
-      _emailStatusCache.set(email, { unanswered: false, noThreads: true });
-      return _emailStatusCache.get(email);
+      result = { unanswered: false, noThreads: true, snippet: '' };
+    } else {
+      var thread = await fetchThreadDetail(threads[0].id);
+      if (!thread || !thread.messages || thread.messages.length === 0) {
+        result = { unanswered: false, noThreads: true, snippet: '' };
+      } else {
+        var lastMsg = thread.messages[thread.messages.length - 1];
+        var fromEmail = extractEmail(getHeader(lastMsg, 'From'));
+        var unanswered = fromEmail === email && fromEmail !== (_gmailUserEmail || '').toLowerCase();
+        result = { unanswered: unanswered, snippet: threads[0].snippet || '', noThreads: false };
+      }
     }
-    // Get most recent thread detail
-    var thread = await fetchThreadDetail(threads[0].id);
-    if (!thread || !thread.messages || thread.messages.length === 0) {
-      _emailStatusCache.set(email, { unanswered: false, noThreads: true });
-      return _emailStatusCache.get(email);
+    // Save locally for immediate rendering
+    _emailStatusCache.set(email, result);
+    // Write to Firestore so other team members can see this user's result
+    if (_useFirebase && _gmailUserEmail) {
+      var update = {};
+      update[email + '.' + _gmailUserEmail.toLowerCase()] = {
+        unanswered: result.unanswered,
+        snippet: result.snippet,
+        noThreads: result.noThreads,
+        checkedAt: new Date().toISOString()
+      };
+      db.collection('crm').doc('emailStatuses').set(update, { merge: true });
     }
-    var lastMsg = thread.messages[thread.messages.length - 1];
-    var fromEmail = extractEmail(getHeader(lastMsg, 'From'));
-    var unanswered = fromEmail === email && fromEmail !== (_gmailUserEmail || '').toLowerCase();
-    var snippet = threads[0].snippet || '';
-    _emailStatusCache.set(email, { unanswered: unanswered, snippet: snippet, noThreads: false });
-    return _emailStatusCache.get(email);
+    return result;
   }
 
   async function checkAllEmailStatuses() {
@@ -250,7 +266,32 @@
 
   function getEmailStatusForContact(contactEmail) {
     if (!contactEmail) return null;
-    return _emailStatusCache.get(contactEmail.toLowerCase().trim()) || null;
+    var email = contactEmail.toLowerCase().trim();
+    var contactStatuses = _firestoreEmailStatuses[email];
+    if (!contactStatuses) {
+      return _emailStatusCache.get(email) || null;
+    }
+    // Combine results from all team members
+    var TWO_HOURS = 2 * 60 * 60 * 1000;
+    var now = Date.now();
+    var freshResults = TEAM_EMAILS
+      .map(function (te) { return contactStatuses[te]; })
+      .filter(function (r) {
+        return r && r.checkedAt && (now - new Date(r.checkedAt).getTime()) < TWO_HOURS;
+      });
+    if (freshResults.length === 0) {
+      return _emailStatusCache.get(email) || null;
+    }
+    // "Needs reply" only if ALL team members with fresh data show unanswered
+    var allUnanswered = freshResults.every(function (r) { return r.unanswered; });
+    var latest = freshResults.reduce(function (a, b) {
+      return (a.checkedAt || '') > (b.checkedAt || '') ? a : b;
+    });
+    return {
+      unanswered: allUnanswered,
+      snippet: latest.snippet || '',
+      noThreads: freshResults.every(function (r) { return r.noThreads; })
+    };
   }
 
   // ===== Constants =====
@@ -478,6 +519,15 @@
         }
       }
     });
+
+    // Shared email statuses across team members
+    db.collection('crm').doc('emailStatuses').onSnapshot(doc => {
+      var data = doc.data();
+      if (data) {
+        _firestoreEmailStatuses = data;
+        renderPipeline();
+      }
+    });
   }
 
   // Load initial data from Firestore (first load seeds cache)
@@ -678,7 +728,7 @@
         card.dataset.dealId = deal.id;
         // Email status badge
         let emailBadgeHtml = '';
-        if (_gmailAccessToken && contact && contact.email) {
+        if (contact && contact.email) {
           const emailStatus = getEmailStatusForContact(contact.email);
           if (emailStatus && emailStatus.unanswered) {
             emailBadgeHtml = `<div class="deal-card-email-badge unanswered"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Needs reply</div>`;
