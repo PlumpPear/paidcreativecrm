@@ -131,11 +131,15 @@
 
     // Refresh email statuses button
     if (refreshBtn) {
-      refreshBtn.addEventListener('click', function () {
+      refreshBtn.addEventListener('click', async function () {
         if (refreshBtn.classList.contains('spinning')) return;
         refreshBtn.classList.add('spinning');
+        // Re-acquire Gmail token if missing or expired
+        if (!_gmailAccessToken) {
+          await refreshGmailToken();
+        }
         var minSpin = new Promise(function (r) { setTimeout(r, 800); });
-        Promise.all([checkAllEmailStatuses(), minSpin]).finally(function () {
+        await Promise.all([checkAllEmailStatuses(), minSpin]).finally(function () {
           refreshBtn.classList.remove('spinning');
         });
       });
@@ -143,6 +147,22 @@
   }
 
   // ===== Gmail API Helpers =====
+  async function refreshGmailToken() {
+    var provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+    try {
+      var result = await firebase.auth().signInWithPopup(provider);
+      if (result.credential) {
+        _gmailAccessToken = result.credential.accessToken;
+        sessionStorage.setItem('gmail_access_token', _gmailAccessToken);
+        return true;
+      }
+    } catch (e) {
+      console.warn('Gmail re-auth failed:', e.message);
+    }
+    return false;
+  }
+
   async function gmailFetch(url) {
     if (!_gmailAccessToken) return null;
     var resp = await fetch(url, {
@@ -247,8 +267,10 @@
     _emailStatusCache.set(email, result);
     // Write to Firestore so other team members can see this user's result
     if (_useFirebase && _gmailUserEmail) {
+      var contactKey = email.replace(/\./g, '_');
+      var teamKey = _gmailUserEmail.toLowerCase().replace(/\./g, '_');
       var update = {};
-      update[email + '.' + _gmailUserEmail.toLowerCase()] = {
+      update[contactKey + '.' + teamKey] = {
         unanswered: result.unanswered,
         snippet: result.snippet,
         noThreads: result.noThreads,
@@ -291,7 +313,8 @@
   function getEmailStatusForContact(contactEmail) {
     if (!contactEmail) return null;
     var email = contactEmail.toLowerCase().trim();
-    var contactStatuses = _firestoreEmailStatuses[email];
+    var contactKey = email.replace(/\./g, '_');
+    var contactStatuses = _firestoreEmailStatuses[contactKey];
     if (!contactStatuses) {
       return _emailStatusCache.get(email) || null;
     }
@@ -299,7 +322,7 @@
     var TWO_HOURS = 2 * 60 * 60 * 1000;
     var now = Date.now();
     var freshResults = TEAM_EMAILS
-      .map(function (te) { return contactStatuses[te]; })
+      .map(function (te) { return contactStatuses[te.replace(/\./g, '_')]; })
       .filter(function (r) {
         return r && r.checkedAt && (now - new Date(r.checkedAt).getTime()) < TWO_HOURS;
       });
