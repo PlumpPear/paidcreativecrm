@@ -1328,20 +1328,15 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   flex-direction: column;
   gap: 6px;
 }
-.deal-contact-chips:empty {
-  display: none;
-}
+.deal-contact-chips:empty { display: none; }
 .deal-contact-chip {
   display: flex;
   align-items: center;
-  width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 12px;
   font-size: 0.9rem;
-  color: var(--text-primary);
-  cursor: default;
 }
 .deal-contact-chip .chip-name {
   flex: 1;
@@ -1350,31 +1345,16 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.deal-contact-chip .chip-edit {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0 6px;
-  flex-shrink: 0;
-}
-.deal-contact-chip .chip-edit:hover {
-  color: var(--accent);
-}
+.deal-contact-chip .chip-edit,
 .deal-contact-chip .chip-remove {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 1rem;
-  padding: 0 2px;
-  line-height: 1;
-  flex-shrink: 0;
+  padding: 0 4px;
 }
-.deal-contact-chip .chip-remove:hover {
-  color: var(--danger);
-}
+.deal-contact-chip .chip-edit:hover { color: var(--accent); }
+.deal-contact-chip .chip-remove:hover { color: var(--danger); }
 
 .deal-contact-picker {
   display: flex;
