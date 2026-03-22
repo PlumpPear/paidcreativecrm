@@ -255,6 +255,7 @@
             <select id="deal-contact">
               <option value="">-- Select Contact --</option>
             </select>
+            <button type="button" class="btn btn-secondary btn-sm" id="deal-edit-contact-btn" style="display:none">Edit</button>
             <button type="button" class="btn btn-secondary btn-sm" id="deal-new-contact-toggle">+ New</button>
           </div>
           <div id="deal-new-contact-fields" class="deal-new-contact-fields" style="display:none">
@@ -277,6 +278,20 @@
                 <label for="deal-contact-company">Company</label>
                 <input type="text" id="deal-contact-company" placeholder="Acme Corp">
               </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="deal-contact-phone">Phone</label>
+                <input type="text" id="deal-contact-phone" placeholder="(555) 123-4567">
+              </div>
+              <div class="form-group">
+                <label for="deal-contact-title">Title</label>
+                <input type="text" id="deal-contact-title" placeholder="CEO">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="deal-contact-notes">Notes</label>
+              <textarea id="deal-contact-notes" rows="2" placeholder="Notes about this contact..."></textarea>
             </div>
           </div>
         </div>

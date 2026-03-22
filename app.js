@@ -944,17 +944,33 @@
 
   // ===== Deal Modal =====
   function resetDealNewContactFields() {
+    _editingContactId = null;
     const fields = document.getElementById('deal-new-contact-fields');
     fields.style.display = 'none';
     document.getElementById('deal-contact-first').value = '';
     document.getElementById('deal-contact-last').value = '';
     document.getElementById('deal-contact-email').value = '';
     document.getElementById('deal-contact-company').value = '';
+    document.getElementById('deal-contact-phone').value = '';
+    document.getElementById('deal-contact-title').value = '';
+    document.getElementById('deal-contact-notes').value = '';
     document.getElementById('deal-contact-first').removeAttribute('required');
     document.getElementById('deal-contact-last').removeAttribute('required');
     const toggleBtn = document.getElementById('deal-new-contact-toggle');
     toggleBtn.textContent = '+ New';
+    toggleBtn.style.display = '';
+    const editBtn = document.getElementById('deal-edit-contact-btn');
+    editBtn.textContent = 'Edit';
+    updateEditContactBtnVisibility();
     document.getElementById('deal-contact').disabled = false;
+  }
+
+  function updateEditContactBtnVisibility() {
+    const contactSelect = document.getElementById('deal-contact');
+    const editBtn = document.getElementById('deal-edit-contact-btn');
+    const fields = document.getElementById('deal-new-contact-fields');
+    const isFieldsOpen = fields.style.display !== 'none';
+    editBtn.style.display = (contactSelect.value && !isFieldsOpen) ? '' : 'none';
   }
 
   function toggleDealNewContact() {
@@ -968,17 +984,53 @@
       resetDealNewContactFields();
     } else {
       // Expand: show inline fields, disable dropdown
+      _editingContactId = null;
       fields.style.display = '';
       contactSelect.value = '';
       contactSelect.disabled = true;
       toggleBtn.textContent = 'Cancel';
+      document.getElementById('deal-edit-contact-btn').style.display = 'none';
       document.getElementById('deal-contact-first').setAttribute('required', '');
       document.getElementById('deal-contact-last').setAttribute('required', '');
     }
   }
 
+  function toggleDealEditContact() {
+    const fields = document.getElementById('deal-new-contact-fields');
+    const contactSelect = document.getElementById('deal-contact');
+    const editBtn = document.getElementById('deal-edit-contact-btn');
+    const isShowing = fields.style.display !== 'none';
+
+    if (isShowing) {
+      resetDealNewContactFields();
+      return;
+    }
+
+    const contactId = contactSelect.value;
+    if (!contactId) return;
+    const contacts = Store.getContacts();
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact) return;
+
+    _editingContactId = contactId;
+    fields.style.display = '';
+    contactSelect.disabled = true;
+    editBtn.textContent = 'Cancel';
+    document.getElementById('deal-new-contact-toggle').style.display = 'none';
+    document.getElementById('deal-contact-first').value = contact.firstName || '';
+    document.getElementById('deal-contact-last').value = contact.lastName || '';
+    document.getElementById('deal-contact-email').value = contact.email || '';
+    document.getElementById('deal-contact-company').value = contact.company || '';
+    document.getElementById('deal-contact-phone').value = contact.phone || '';
+    document.getElementById('deal-contact-title').value = contact.title || '';
+    document.getElementById('deal-contact-notes').value = contact.notes || '';
+    document.getElementById('deal-contact-first').setAttribute('required', '');
+    document.getElementById('deal-contact-last').setAttribute('required', '');
+  }
+
   // ===== Deal Comments =====
   let _modalComments = [];
+  let _editingContactId = null;
 
   function renderDealComments() {
     const list = document.getElementById('deal-comments-list');
@@ -1183,6 +1235,7 @@
     }
 
     renderDealComments();
+    updateEditContactBtnVisibility();
     loadDealEmails(dealId);
     modal.classList.add('show');
   }
@@ -1351,7 +1404,7 @@
     const id = document.getElementById('deal-id').value;
     const deals = Store.getDeals();
 
-    // If inline new-contact fields are visible, create the contact first
+    // If inline contact fields are visible, create or update the contact
     let contactId = document.getElementById('deal-contact').value || null;
     const newContactFields = document.getElementById('deal-new-contact-fields');
     if (newContactFields.style.display !== 'none') {
@@ -1359,24 +1412,45 @@
       const lastName = document.getElementById('deal-contact-last').value.trim();
       if (!firstName || !lastName) return; // form validation should catch this
 
-      const newContact = {
-        id: generateId(),
-        firstName,
-        lastName,
-        email: document.getElementById('deal-contact-email').value.trim(),
-        company: document.getElementById('deal-contact-company').value.trim(),
-        phone: '',
-        title: '',
-        notes: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      const contacts = Store.getContacts();
-      contacts.push(newContact);
-      Store.saveContacts(contacts);
-      Store.addActivity(`<strong>${firstName} ${lastName}</strong> was added as a contact`, '#10b981');
-      contactId = newContact.id;
-      renderContacts();
+      if (_editingContactId) {
+        // Update existing contact
+        const contacts = Store.getContacts();
+        const contact = contacts.find(c => c.id === _editingContactId);
+        if (contact) {
+          contact.firstName = firstName;
+          contact.lastName = lastName;
+          contact.email = document.getElementById('deal-contact-email').value.trim();
+          contact.company = document.getElementById('deal-contact-company').value.trim();
+          contact.phone = document.getElementById('deal-contact-phone').value.trim();
+          contact.title = document.getElementById('deal-contact-title').value.trim();
+          contact.notes = document.getElementById('deal-contact-notes').value.trim();
+          contact.updatedAt = new Date().toISOString();
+          Store.saveContacts(contacts);
+          Store.addActivity(`<strong>${firstName} ${lastName}</strong> contact was updated`, '#6366f1');
+          contactId = _editingContactId;
+          renderContacts();
+        }
+      } else {
+        // Create new contact
+        const newContact = {
+          id: generateId(),
+          firstName,
+          lastName,
+          email: document.getElementById('deal-contact-email').value.trim(),
+          company: document.getElementById('deal-contact-company').value.trim(),
+          phone: document.getElementById('deal-contact-phone').value.trim(),
+          title: document.getElementById('deal-contact-title').value.trim(),
+          notes: document.getElementById('deal-contact-notes').value.trim(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        const contacts = Store.getContacts();
+        contacts.push(newContact);
+        Store.saveContacts(contacts);
+        Store.addActivity(`<strong>${firstName} ${lastName}</strong> was added as a contact`, '#10b981');
+        contactId = newContact.id;
+        renderContacts();
+      }
     }
 
     // If there's text in the comment input, add it as a comment before saving
@@ -1749,6 +1823,8 @@
     document.getElementById('deal-form').addEventListener('submit', saveDeal);
     document.getElementById('deal-delete').addEventListener('click', deleteDeal);
     document.getElementById('deal-new-contact-toggle').addEventListener('click', toggleDealNewContact);
+    document.getElementById('deal-edit-contact-btn').addEventListener('click', toggleDealEditContact);
+    document.getElementById('deal-contact').addEventListener('change', updateEditContactBtnVisibility);
     document.getElementById('deal-add-comment').addEventListener('click', addDealComment);
     document.getElementById('deal-comment-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
