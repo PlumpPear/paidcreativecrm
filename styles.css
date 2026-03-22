@@ -38,33 +38,12 @@
   font-size: 0.875rem;
   margin-bottom: 24px;
 }
-.password-gate-input {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.password-gate-input:focus {
-  border-color: var(--accent-indigo);
-}
 .password-gate-error {
   color: var(--accent-red);
   font-size: 0.8rem;
   min-height: 20px;
   margin: 8px 0;
 }
-.password-gate-btn {
-  width: 100%;
-  padding: 10px;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
 /* ===== Reset & Base ===== */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -89,6 +68,9 @@
   --accent-green: #10b981;
   --accent-red: #ef4444;
   --accent-blue: #3b82f6;
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --danger: #ef4444;
   --sidebar-width: 240px;
   --radius: 8px;
   --radius-lg: 12px;

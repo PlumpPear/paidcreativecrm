@@ -241,8 +241,6 @@
   // ===== Email Status Monitoring =====
   var _emailStatusCache = new Map();
   var _emailMonitorInterval = null;
-  var _threadCache = new Map();
-  var THREAD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   async function checkEmailStatusForContact(contactEmail) {
     if (!contactEmail || !_gmailAccessToken) return null;
