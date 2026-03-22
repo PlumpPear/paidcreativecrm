@@ -288,14 +288,16 @@
     var activeStages = STAGES.filter(function (s) { return s !== 'closed_won' && s !== 'closed_lost'; });
     var activeDeals = deals.filter(function (d) { return activeStages.includes(d.stage); });
 
+    var checkedEmails = {};
     for (var i = 0; i < activeDeals.length; i++) {
       var deal = activeDeals[i];
-      if (!deal.contactId) continue;
-      var contact = contacts.find(function (c) { return c.id === deal.contactId; });
-      if (!contact || !contact.email) continue;
-      await checkEmailStatusForContact(contact.email);
-      // Throttle: 100ms between requests
-      if (i < activeDeals.length - 1) {
+      var cids = getDealContactIds(deal);
+      for (var j = 0; j < cids.length; j++) {
+        var contact = contacts.find(function (c) { return c.id === cids[j]; });
+        if (!contact || !contact.email) continue;
+        if (checkedEmails[contact.email]) continue;
+        checkedEmails[contact.email] = true;
+        await checkEmailStatusForContact(contact.email);
         await new Promise(function (r) { setTimeout(r, 100); });
       }
     }
@@ -699,6 +701,14 @@
     if (viewName === 'pipeline') renderPipeline();
   }
 
+  // ===== Contact Helpers =====
+  // Backward-compatible helper: returns array of contact IDs for a deal
+  function getDealContactIds(deal) {
+    if (deal.contactIds && deal.contactIds.length > 0) return deal.contactIds;
+    if (deal.contactId) return [deal.contactId];
+    return [];
+  }
+
   // ===== Pipeline =====
   function renderPipeline() {
     const deals = Store.getDeals();
@@ -727,8 +737,9 @@
 
       stageDeals.forEach(deal => {
         const contacts = Store.getContacts();
-        const contact = contacts.find(c => c.id === deal.contactId);
-        const companyText = contact ? (contact.company || `${contact.firstName} ${contact.lastName}`) : '';
+        const dealContactIds = getDealContactIds(deal);
+        const dealContacts = dealContactIds.map(cid => contacts.find(c => c.id === cid)).filter(Boolean);
+        const companyText = dealContacts.map(c => c.company || `${c.firstName} ${c.lastName}`).join(', ');
 
         const isOneTime = deal.type === 'one_time';
         const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
@@ -773,13 +784,15 @@
         card.className = 'deal-card' + followUpClass;
         card.draggable = true;
         card.dataset.dealId = deal.id;
-        // Email status badge
+        // Email status badge — show if any contact needs reply
         let emailBadgeHtml = '';
-        if (contact && contact.email) {
-          const emailStatus = getEmailStatusForContact(contact.email);
-          if (emailStatus && emailStatus.unanswered) {
-            emailBadgeHtml = `<div class="deal-card-email-badge unanswered"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Needs reply</div>`;
-          }
+        const needsReply = dealContacts.some(c => {
+          if (!c.email) return false;
+          const emailStatus = getEmailStatusForContact(c.email);
+          return emailStatus && emailStatus.unanswered;
+        });
+        if (needsReply) {
+          emailBadgeHtml = `<div class="deal-card-email-badge unanswered"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Needs reply</div>`;
         }
 
         card.innerHTML = `
@@ -1028,6 +1041,63 @@
     document.getElementById('deal-contact-last').setAttribute('required', '');
   }
 
+  // ===== Deal Contacts (multi-contact support) =====
+  let _modalContactIds = [];
+
+  function renderDealContactChips() {
+    const container = document.getElementById('deal-contact-chips');
+    const contacts = Store.getContacts();
+    container.innerHTML = _modalContactIds.map(cid => {
+      const c = contacts.find(x => x.id === cid);
+      if (!c) return '';
+      const label = (c.firstName + ' ' + c.lastName).trim() + (c.company ? ' (' + c.company + ')' : '');
+      return `<span class="deal-contact-chip" data-contact-id="${cid}">
+        ${escapeHtml(label)}
+        <button type="button" class="chip-edit" title="Edit contact">&hellip;</button>
+        <button type="button" class="chip-remove" title="Remove">&times;</button>
+      </span>`;
+    }).join('');
+
+    container.querySelectorAll('.chip-remove').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const chip = this.closest('.deal-contact-chip');
+        const cid = chip.dataset.contactId;
+        _modalContactIds = _modalContactIds.filter(id => id !== cid);
+        renderDealContactChips();
+      });
+    });
+    container.querySelectorAll('.chip-edit').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const chip = this.closest('.deal-contact-chip');
+        const cid = chip.dataset.contactId;
+        // Set the dropdown to this contact and trigger edit
+        document.getElementById('deal-contact-picker').style.display = '';
+        document.getElementById('deal-contact').value = cid;
+        updateEditContactBtnVisibility();
+        toggleDealEditContact();
+      });
+    });
+  }
+
+  function showContactPicker() {
+    const picker = document.getElementById('deal-contact-picker');
+    picker.style.display = '';
+    document.getElementById('deal-contact').value = '';
+    updateEditContactBtnVisibility();
+  }
+
+  function addContactFromPicker() {
+    const select = document.getElementById('deal-contact');
+    const cid = select.value;
+    if (!cid || _modalContactIds.includes(cid)) return;
+    _modalContactIds.push(cid);
+    renderDealContactChips();
+    // Reset picker
+    select.value = '';
+    document.getElementById('deal-contact-picker').style.display = 'none';
+    resetDealNewContactFields();
+  }
+
   // ===== Deal Comments =====
   let _modalComments = [];
   let _editingContactId = null;
@@ -1203,7 +1273,7 @@
       document.getElementById('deal-name').value = deal.name;
       document.getElementById('deal-value').value = deal.value;
       document.getElementById('deal-stage').value = deal.stage;
-      document.getElementById('deal-contact').value = deal.contactId || '';
+      _modalContactIds = getDealContactIds(deal);
       deleteBtn.style.display = 'inline-flex';
 
       // Set deal type
@@ -1231,9 +1301,13 @@
       });
       document.getElementById('deal-value-label').textContent = 'Monthly Value ($)';
 
+      _modalContactIds = [];
       _modalComments = [];
     }
 
+    renderDealContactChips();
+    document.getElementById('deal-contact-picker').style.display = _modalContactIds.length === 0 ? '' : 'none';
+    document.getElementById('deal-contact').value = '';
     renderDealComments();
     updateEditContactBtnVisibility();
     loadDealEmails(dealId);
@@ -1255,23 +1329,24 @@
 
     var deals = Store.getDeals();
     var deal = deals.find(function (d) { return d.id === dealId; });
-    if (!deal || !deal.contactId) return;
+    var cids = deal ? getDealContactIds(deal) : [];
+    if (cids.length === 0) return;
 
     var contacts = Store.getContacts();
-    var contact = contacts.find(function (c) { return c.id === deal.contactId; });
-    if (!contact || !contact.email) return;
+    var dealContacts = cids.map(function (cid) { return contacts.find(function (c) { return c.id === cid; }); }).filter(function (c) { return c && c.email; });
+    if (dealContacts.length === 0) return;
 
     // Show the email section
     emailSection.style.display = '';
 
-    // Set up toggle
+    // Set up toggle — load emails for first contact with email
     var toggle = document.getElementById('deal-email-toggle');
     toggle.onclick = function () {
       var isHidden = threadContainer.style.display === 'none';
       threadContainer.style.display = isHidden ? '' : 'none';
       toggle.classList.toggle('expanded', isHidden);
       if (isHidden && threadList.innerHTML === '') {
-        fetchAndRenderEmails(contact.email, threadList, loadingEl);
+        fetchAndRenderEmails(dealContacts[0].email, threadList, loadingEl);
       }
     };
   }
@@ -1405,7 +1480,6 @@
     const deals = Store.getDeals();
 
     // If inline contact fields are visible, create or update the contact
-    let contactId = document.getElementById('deal-contact').value || null;
     const newContactFields = document.getElementById('deal-new-contact-fields');
     if (newContactFields.style.display !== 'none') {
       const firstName = document.getElementById('deal-contact-first').value.trim();
@@ -1427,7 +1501,6 @@
           contact.updatedAt = new Date().toISOString();
           Store.saveContacts(contacts);
           Store.addActivity(`<strong>${firstName} ${lastName}</strong> contact was updated`, '#6366f1');
-          contactId = _editingContactId;
           renderContacts();
         }
       } else {
@@ -1448,9 +1521,17 @@
         contacts.push(newContact);
         Store.saveContacts(contacts);
         Store.addActivity(`<strong>${firstName} ${lastName}</strong> was added as a contact`, '#10b981');
-        contactId = newContact.id;
+        if (!_modalContactIds.includes(newContact.id)) {
+          _modalContactIds.push(newContact.id);
+        }
         renderContacts();
       }
+    }
+
+    // Also add any contact selected in the picker but not yet chipped
+    const pickerVal = document.getElementById('deal-contact').value;
+    if (pickerVal && !_modalContactIds.includes(pickerVal)) {
+      _modalContactIds.push(pickerVal);
     }
 
     // If there's text in the comment input, add it as a comment before saving
@@ -1460,13 +1541,15 @@
       document.getElementById('deal-comment-input').value = '';
     }
 
+    const contactIds = _modalContactIds.slice();
     const dealData = {
       name: document.getElementById('deal-name').value.trim(),
       value: parseFloat(document.getElementById('deal-value').value) || 0,
       type: document.getElementById('deal-type').value,
       stage: document.getElementById('deal-stage').value,
       owner: document.getElementById('deal-owner').value,
-      contactId,
+      contactIds,
+      contactId: contactIds[0] || null,
       followUpDate: document.getElementById('deal-follow-up').value || null,
       comments: _modalComments,
       updatedAt: new Date().toISOString()
@@ -1559,7 +1642,7 @@
       item.classList.toggle('active', item.dataset.contactId === contactId);
     });
 
-    const deals = Store.getDeals().filter(d => d.contactId === contactId);
+    const deals = Store.getDeals().filter(d => getDealContactIds(d).includes(contactId));
     const initials = getInitials(contact.firstName, contact.lastName);
     const color = getAvatarColor(contact.firstName + contact.lastName);
 
@@ -1675,7 +1758,7 @@
       deleteBtn.style.display = 'inline-flex';
 
       // Show associated deals with stage dropdowns
-      const deals = Store.getDeals().filter(d => d.contactId === contactId);
+      const deals = Store.getDeals().filter(d => getDealContactIds(d).includes(contactId));
       if (deals.length > 0) {
         dealsSection.style.display = '';
         dealsContainer.innerHTML = deals.map(d => `
@@ -1824,7 +1907,19 @@
     document.getElementById('deal-delete').addEventListener('click', deleteDeal);
     document.getElementById('deal-new-contact-toggle').addEventListener('click', toggleDealNewContact);
     document.getElementById('deal-edit-contact-btn').addEventListener('click', toggleDealEditContact);
-    document.getElementById('deal-contact').addEventListener('change', updateEditContactBtnVisibility);
+    document.getElementById('deal-contact').addEventListener('change', function () {
+      updateEditContactBtnVisibility();
+      // Auto-add selected contact and hide picker
+      const cid = this.value;
+      if (cid && !_modalContactIds.includes(cid)) {
+        _modalContactIds.push(cid);
+        renderDealContactChips();
+        this.value = '';
+        document.getElementById('deal-contact-picker').style.display = 'none';
+        resetDealNewContactFields();
+      }
+    });
+    document.getElementById('deal-contact-add-btn').addEventListener('click', showContactPicker);
     document.getElementById('deal-add-comment').addEventListener('click', addDealComment);
     document.getElementById('deal-comment-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

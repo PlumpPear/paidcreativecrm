@@ -1323,10 +1323,69 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
 }
 
 /* ===== Deal Contact Picker ===== */
+.deal-contact-add-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  margin-left: 6px;
+  padding: 0;
+  vertical-align: middle;
+}
+.deal-contact-add-btn:hover {
+  background: var(--accent-hover);
+}
+
+.deal-contact-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.deal-contact-chips:empty {
+  display: none;
+}
+.deal-contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 3px 8px 3px 10px;
+  font-size: 0.82rem;
+  cursor: default;
+}
+.deal-contact-chip .chip-edit {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0 2px;
+}
+.deal-contact-chip .chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 2px;
+  line-height: 1;
+}
+.deal-contact-chip .chip-remove:hover {
+  color: var(--danger);
+}
+
 .deal-contact-picker {
   display: flex;
   gap: 8px;
   align-items: center;
+  margin-top: 6px;
 }
 
 .deal-contact-picker select {
