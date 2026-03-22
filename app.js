@@ -243,7 +243,6 @@
   var _emailMonitorInterval = null;
   var _threadCache = new Map();
   var THREAD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  var _firestoreEmailStatuses = {};
 
   async function checkEmailStatusForContact(contactEmail) {
     if (!contactEmail || !_gmailAccessToken) return null;
@@ -259,25 +258,13 @@
       } else {
         var lastMsg = thread.messages[thread.messages.length - 1];
         var fromEmail = extractEmail(getHeader(lastMsg, 'From'));
-        var unanswered = fromEmail === email && fromEmail !== (_gmailUserEmail || '').toLowerCase();
+        var isFromContact = fromEmail === email;
+        var isFromTeam = TEAM_EMAILS.some(function(te) { return te.toLowerCase() === fromEmail; });
+        var unanswered = isFromContact && !isFromTeam;
         result = { unanswered: unanswered, snippet: threads[0].snippet || '', noThreads: false };
       }
     }
-    // Save locally for immediate rendering
     _emailStatusCache.set(email, result);
-    // Write to Firestore so other team members can see this user's result
-    if (_useFirebase && _gmailUserEmail) {
-      var contactKey = email.replace(/\./g, '_');
-      var teamKey = _gmailUserEmail.toLowerCase().replace(/\./g, '_');
-      var update = {};
-      update[contactKey + '.' + teamKey] = {
-        unanswered: result.unanswered,
-        snippet: result.snippet,
-        noThreads: result.noThreads,
-        checkedAt: new Date().toISOString()
-      };
-      db.collection('crm').doc('emailStatuses').set(update, { merge: true });
-    }
     return result;
   }
 
@@ -314,33 +301,7 @@
 
   function getEmailStatusForContact(contactEmail) {
     if (!contactEmail) return null;
-    var email = contactEmail.toLowerCase().trim();
-    var contactKey = email.replace(/\./g, '_');
-    var contactStatuses = _firestoreEmailStatuses[contactKey];
-    if (!contactStatuses) {
-      return _emailStatusCache.get(email) || null;
-    }
-    // Combine results from all team members
-    var TWO_HOURS = 2 * 60 * 60 * 1000;
-    var now = Date.now();
-    var freshResults = TEAM_EMAILS
-      .map(function (te) { return contactStatuses[te.replace(/\./g, '_')]; })
-      .filter(function (r) {
-        return r && r.checkedAt && (now - new Date(r.checkedAt).getTime()) < TWO_HOURS;
-      });
-    if (freshResults.length === 0) {
-      return _emailStatusCache.get(email) || null;
-    }
-    // "Needs reply" only if ALL team members with fresh data show unanswered
-    var allUnanswered = freshResults.every(function (r) { return r.unanswered; });
-    var latest = freshResults.reduce(function (a, b) {
-      return (a.checkedAt || '') > (b.checkedAt || '') ? a : b;
-    });
-    return {
-      unanswered: allUnanswered,
-      snippet: latest.snippet || '',
-      noThreads: freshResults.every(function (r) { return r.noThreads; })
-    };
+    return _emailStatusCache.get(contactEmail.toLowerCase().trim()) || null;
   }
 
   // ===== Constants =====
@@ -569,14 +530,6 @@
       }
     });
 
-    // Shared email statuses across team members
-    db.collection('crm').doc('emailStatuses').onSnapshot(doc => {
-      var data = doc.data();
-      if (data) {
-        _firestoreEmailStatuses = data;
-        renderPipeline();
-      }
-    });
   }
 
   // Load initial data from Firestore (first load seeds cache)
