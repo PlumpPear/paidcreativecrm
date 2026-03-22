@@ -1003,7 +1003,7 @@
       if (!c) return '';
       const label = (c.firstName + ' ' + c.lastName).trim() + (c.company ? ' (' + c.company + ')' : '');
       return `<span class="deal-contact-chip" data-contact-id="${cid}">
-        ${escapeHtml(label)}
+        <span class="chip-name">${escapeHtml(label)}</span>
         <button type="button" class="chip-edit" title="Edit contact">&hellip;</button>
         <button type="button" class="chip-remove" title="Remove">&times;</button>
       </span>`;

@@ -1325,39 +1325,52 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
 
 .deal-contact-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
 }
 .deal-contact-chips:empty {
   display: none;
 }
 .deal-contact-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  background: var(--bg-primary);
+  width: 100%;
+  background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 3px 8px 3px 10px;
-  font-size: 0.82rem;
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
   cursor: default;
+}
+.deal-contact-chip .chip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .deal-contact-chip .chip-edit {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.75rem;
-  padding: 0 2px;
+  font-size: 0.85rem;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+.deal-contact-chip .chip-edit:hover {
+  color: var(--accent);
 }
 .deal-contact-chip .chip-remove {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1rem;
   padding: 0 2px;
   line-height: 1;
+  flex-shrink: 0;
 }
 .deal-contact-chip .chip-remove:hover {
   color: var(--danger);
