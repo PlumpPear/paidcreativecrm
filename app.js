@@ -345,9 +345,10 @@
     }
   }
 
-  const STAGES = ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
+  const STAGES = ['discovery', 'icebox', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
   const STAGE_LABELS = {
     discovery: 'Discovery',
+    icebox: 'Icebox',
     qualification: 'Qualification',
     proposal: 'Proposal',
     negotiation: 'Negotiation',
@@ -356,6 +357,7 @@
   };
   const STAGE_COLORS = {
     discovery: '#6366f1',
+    icebox: '#38bdf8',
     qualification: '#8b5cf6',
     proposal: '#ec4899',
     negotiation: '#f59e0b',

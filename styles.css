@@ -1425,6 +1425,7 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
 
 /* ===== Stage Badge Colors ===== */
 .stage-discovery { background: rgba(99,102,241,0.15); color: #818cf8; }
+.stage-icebox { background: rgba(56,189,248,0.15); color: #7dd3fc; }
 .stage-qualification { background: rgba(139,92,246,0.15); color: #a78bfa; }
 .stage-proposal { background: rgba(236,72,153,0.15); color: #f472b6; }
 .stage-negotiation { background: rgba(245,158,11,0.15); color: #fbbf24; }
