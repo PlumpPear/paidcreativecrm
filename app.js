@@ -178,9 +178,9 @@
     return resp.json();
   }
 
-  // Gmail search link for every email to/from this address
+  // Gmail search link for this email address
   function gmailSearchUrl(email) {
-    var q = encodeURIComponent('from:' + email + ' OR to:' + email);
+    var q = encodeURIComponent(email);
     var acct = _gmailUserEmail ? '?authuser=' + encodeURIComponent(_gmailUserEmail) : '';
     return 'https://mail.google.com/mail/u/0/' + acct + '#search/' + q;
   }
