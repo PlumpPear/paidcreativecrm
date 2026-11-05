@@ -936,6 +936,7 @@
     editBtn.textContent = 'Edit';
     updateEditContactBtnVisibility();
     document.getElementById('deal-contact').disabled = false;
+    document.getElementById('deal-contact-search').disabled = false;
   }
 
   function updateEditContactBtnVisibility() {
@@ -961,6 +962,8 @@
       fields.style.display = '';
       contactSelect.value = '';
       contactSelect.disabled = true;
+      document.getElementById('deal-contact-search').disabled = true;
+      hideContactResults();
       toggleBtn.textContent = 'Cancel';
       document.getElementById('deal-edit-contact-btn').style.display = 'none';
       document.getElementById('deal-contact-first').setAttribute('required', '');
@@ -988,6 +991,8 @@
     _editingContactId = contactId;
     fields.style.display = '';
     contactSelect.disabled = true;
+    document.getElementById('deal-contact-search').disabled = true;
+    hideContactResults();
     editBtn.textContent = 'Cancel';
     document.getElementById('deal-new-contact-toggle').style.display = 'none';
     document.getElementById('deal-contact-first').value = contact.firstName || '';
@@ -1045,6 +1050,84 @@
     picker.style.display = '';
     document.getElementById('deal-contact').value = '';
     updateEditContactBtnVisibility();
+    const search = document.getElementById('deal-contact-search');
+    search.value = '';
+    search.focus();
+    renderContactResults();
+  }
+
+  // ===== Contact search (deal modal) =====
+  let _contactResultIndex = 0;
+
+  function contactLabel(c) {
+    return (c.firstName + ' ' + c.lastName).trim() + (c.company ? ' (' + c.company + ')' : '');
+  }
+
+  function getContactMatches(query) {
+    const q = query.trim().toLowerCase();
+    return Store.getContacts()
+      .filter(c => !_modalContactIds.includes(c.id))
+      .filter(c => !q || [c.firstName + ' ' + c.lastName, c.company, c.email]
+        .some(v => (v || '').toLowerCase().includes(q)))
+      .sort((a, b) => contactLabel(a).localeCompare(contactLabel(b)))
+      .slice(0, 8);
+  }
+
+  function renderContactResults() {
+    const input = document.getElementById('deal-contact-search');
+    const box = document.getElementById('deal-contact-results');
+    const matches = getContactMatches(input.value);
+    _contactResultIndex = Math.min(_contactResultIndex, Math.max(matches.length - 1, 0));
+    box.innerHTML = matches.length === 0
+      ? '<div class="contact-search-empty">No matching contacts. Use "+ New" to add one.</div>'
+      : matches.map((c, i) => `
+        <div class="contact-search-item${i === _contactResultIndex ? ' active' : ''}" data-contact-id="${c.id}">
+          <span class="contact-search-name">${escapeHtml(contactLabel(c))}</span>
+          ${c.email ? `<span class="contact-search-email">${escapeHtml(c.email)}</span>` : ''}
+        </div>`).join('');
+    box.style.display = '';
+  }
+
+  function hideContactResults() {
+    document.getElementById('deal-contact-results').style.display = 'none';
+  }
+
+  function pickContactFromSearch(cid) {
+    if (!cid) return;
+    const select = document.getElementById('deal-contact');
+    select.value = cid;
+    select.dispatchEvent(new Event('change'));
+    document.getElementById('deal-contact-search').value = '';
+    hideContactResults();
+  }
+
+  function initContactSearch() {
+    const input = document.getElementById('deal-contact-search');
+    const box = document.getElementById('deal-contact-results');
+    input.addEventListener('input', () => { _contactResultIndex = 0; renderContactResults(); });
+    input.addEventListener('focus', renderContactResults);
+    input.addEventListener('blur', hideContactResults);
+    input.addEventListener('keydown', (e) => {
+      const items = box.querySelectorAll('.contact-search-item');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!items.length) return;
+        _contactResultIndex = (_contactResultIndex + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        renderContactResults();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (items[_contactResultIndex]) pickContactFromSearch(items[_contactResultIndex].dataset.contactId);
+      } else if (e.key === 'Escape') {
+        e.stopPropagation();
+        hideContactResults();
+      }
+    });
+    // mousedown (not click) so the pick happens before the input's blur hides the list
+    box.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const item = e.target.closest('.contact-search-item');
+      if (item) pickContactFromSearch(item.dataset.contactId);
+    });
   }
 
   function addContactFromPicker() {
@@ -1881,6 +1964,7 @@
       }
     });
     document.getElementById('deal-contact-add-btn').addEventListener('click', showContactPicker);
+    initContactSearch();
     document.getElementById('deal-add-comment').addEventListener('click', addDealComment);
     document.getElementById('deal-comment-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

@@ -265,7 +265,11 @@
           <label for="deal-contact">Contacts <button type="button" class="deal-contact-add-btn" id="deal-contact-add-btn" title="Add contact">+</button></label>
           <div class="deal-contact-chips" id="deal-contact-chips"></div>
           <div class="deal-contact-picker" id="deal-contact-picker" style="display:none">
-            <select id="deal-contact">
+            <div class="contact-search">
+              <input type="text" id="deal-contact-search" placeholder="Search contacts by name, company, or email..." autocomplete="off">
+              <div class="contact-search-results" id="deal-contact-results" style="display:none"></div>
+            </div>
+            <select id="deal-contact" style="display:none">
               <option value="">-- Select Contact --</option>
             </select>
             <button type="button" class="btn btn-secondary btn-sm" id="deal-edit-contact-btn" style="display:none">Edit</button>
