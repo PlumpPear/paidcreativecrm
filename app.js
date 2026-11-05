@@ -832,7 +832,7 @@
         const contacts = Store.getContacts();
         const dealContactIds = getDealContactIds(deal);
         const dealContacts = dealContactIds.map(cid => contacts.find(c => c.id === cid)).filter(Boolean);
-        const companyText = dealContacts.map(c => c.company || `${c.firstName} ${c.lastName}`).join(', ');
+        const companyText = dealContacts.map(c => `${c.firstName} ${c.lastName}`.trim() || c.email || '').filter(Boolean).join(', ');
 
         const isOneTime = deal.type === 'one_time';
         const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
