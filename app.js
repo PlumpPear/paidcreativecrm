@@ -37,7 +37,7 @@
     // Leave empty to allow any Google account
   ];
 
-  // Team members whose Gmail inboxes are checked for "Needs reply"
+  // Team members — excluded from Gmail contact suggestions
   const TEAM_EMAILS = ['sam@paidcreative.com', 'madison@paidcreative.com'];
 
   let _gmailAccessToken = null;
@@ -93,7 +93,6 @@
       _gmailAccessToken = null;
       _gmailUserEmail = null;
       _currentUser = null;
-      _emailStatusCache.clear();
       document.getElementById('gmail-user-section').style.display = 'none';
     });
 
@@ -116,10 +115,6 @@
     } else {
       avatar.style.display = 'none';
     }
-    // Show refresh button when signed in
-    var refreshBtn = document.getElementById('btn-refresh-emails');
-    if (refreshBtn) refreshBtn.style.display = '';
-
     // Profile dropdown toggle
     avatar.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -128,22 +123,6 @@
     document.addEventListener('click', function () {
       document.getElementById('user-profile-dropdown').classList.remove('open');
     });
-
-    // Refresh email statuses button
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', async function () {
-        if (refreshBtn.classList.contains('spinning')) return;
-        refreshBtn.classList.add('spinning');
-        // Re-acquire Gmail token if missing or expired
-        if (!_gmailAccessToken) {
-          await refreshGmailToken();
-        }
-        var minSpin = new Promise(function (r) { setTimeout(r, 800); });
-        await Promise.all([checkAllEmailStatuses(), minSpin]).finally(function () {
-          refreshBtn.classList.remove('spinning');
-        });
-      });
-    }
   }
 
   // ===== Gmail API Helpers =====
@@ -376,70 +355,6 @@
       return tmp.textContent || tmp.innerText || '';
     }
     return '';
-  }
-
-  // ===== Email Status Monitoring =====
-  var _emailStatusCache = new Map();
-  var _emailMonitorInterval = null;
-
-  async function checkEmailStatusForContact(contactEmail) {
-    if (!contactEmail || !_gmailAccessToken) return null;
-    var email = contactEmail.toLowerCase().trim();
-    var threads = await fetchThreadsForContact(email);
-    var result;
-    if (!threads || threads.length === 0) {
-      result = { unanswered: false, noThreads: true, snippet: '' };
-    } else {
-      var thread = await fetchThreadDetail(threads[0].id);
-      if (!thread || !thread.messages || thread.messages.length === 0) {
-        result = { unanswered: false, noThreads: true, snippet: '' };
-      } else {
-        var lastMsg = thread.messages[thread.messages.length - 1];
-        var fromEmail = extractEmail(getHeader(lastMsg, 'From'));
-        var isFromContact = fromEmail === email;
-        var isFromTeam = TEAM_EMAILS.some(function(te) { return te.toLowerCase() === fromEmail; });
-        var unanswered = isFromContact && !isFromTeam;
-        result = { unanswered: unanswered, snippet: threads[0].snippet || '', noThreads: false };
-      }
-    }
-    _emailStatusCache.set(email, result);
-    return result;
-  }
-
-  async function checkAllEmailStatuses() {
-    if (!_gmailAccessToken) return;
-    var deals = Store.getDeals();
-    var contacts = Store.getContacts();
-    var activeStages = STAGES.filter(function (s) { return s !== 'closed_won' && s !== 'closed_lost'; });
-    var activeDeals = deals.filter(function (d) { return activeStages.includes(d.stage); });
-
-    var checkedEmails = {};
-    for (var i = 0; i < activeDeals.length; i++) {
-      var deal = activeDeals[i];
-      var cids = getDealContactIds(deal);
-      for (var j = 0; j < cids.length; j++) {
-        var contact = contacts.find(function (c) { return c.id === cids[j]; });
-        if (!contact || !contact.email) continue;
-        if (checkedEmails[contact.email]) continue;
-        checkedEmails[contact.email] = true;
-        await checkEmailStatusForContact(contact.email);
-        await new Promise(function (r) { setTimeout(r, 100); });
-      }
-    }
-    renderPipeline();
-  }
-
-  function startEmailMonitor() {
-    if (_emailMonitorInterval) clearInterval(_emailMonitorInterval);
-    // Check immediately
-    checkAllEmailStatuses();
-    // Then every 15 minutes
-    _emailMonitorInterval = setInterval(checkAllEmailStatuses, 15 * 60 * 1000);
-  }
-
-  function getEmailStatusForContact(contactEmail) {
-    if (!contactEmail) return null;
-    return _emailStatusCache.get(contactEmail.toLowerCase().trim()) || null;
   }
 
   // ===== Constants =====
@@ -877,17 +792,6 @@
         card.className = 'deal-card' + followUpClass;
         card.draggable = true;
         card.dataset.dealId = deal.id;
-        // Email status badge — show if any contact needs reply
-        let emailBadgeHtml = '';
-        const needsReply = dealContacts.some(c => {
-          if (!c.email) return false;
-          const emailStatus = getEmailStatusForContact(c.email);
-          return emailStatus && emailStatus.unanswered;
-        });
-        if (needsReply) {
-          emailBadgeHtml = `<div class="deal-card-email-badge unanswered"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Needs reply</div>`;
-        }
-
         card.innerHTML = `
           <div class="deal-card-top"><div class="deal-card-name">${escapeHtml(deal.name)}</div>${ownerHtml}</div>
           ${companyText ? `<div class="deal-card-company">${escapeHtml(companyText)}</div>` : ''}
@@ -895,7 +799,6 @@
             <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>${typeBadge}
           </div>
           ${followUpHtml}
-          ${emailBadgeHtml}
         `;
 
         card.addEventListener('click', () => openDealModal(deal.id));
@@ -2397,10 +2300,6 @@
       renderPipeline();
       Store.updateMrrHistory();
       initFirebaseListeners();
-      // Start Gmail email monitoring if token available
-      if (_gmailAccessToken) {
-        startEmailMonitor();
-      }
     });
   }
 
