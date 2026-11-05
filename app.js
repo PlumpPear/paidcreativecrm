@@ -185,6 +185,139 @@
     return 'https://mail.google.com/mail/u/0/' + acct + '#search/' + q;
   }
 
+  // ===== Gmail people (Gmail as the source of contacts) =====
+  var FREE_MAIL_DOMAINS = ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'yahoo.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'proton.me', 'protonmail.com'];
+  var AUTOMATED_EMAIL_RE = /(no-?reply|do-?not-?reply|notifications?@|notify@|mailer-daemon|postmaster|newsletters?@|^info@|^support@|^help@|^billing@|^receipts?@|^invoices?@|^orders?@|^news@|^marketing@|^updates@|calendar-notification|bounces?[@+.]|@.*\.(hubspot|mailchimp|sendgrid|intercom)\.)/i;
+
+  function isAutomatedEmail(email) {
+    return AUTOMATED_EMAIL_RE.test(email);
+  }
+
+  // '"Shane Smith" <shane@mudwtr.com>, bob@x.com' -> [{name, email}, ...]
+  function parseAddressList(value) {
+    var out = [];
+    if (!value) return out;
+    var re = /(?:"?([^"<>,]*?)"?\s*<([^<>\s]+@[^<>\s]+)>|([^\s<>,;"]+@[^\s<>,;"]+))/g;
+    var m;
+    while ((m = re.exec(value))) {
+      var email = (m[2] || m[3] || '').toLowerCase().trim();
+      var name = (m[1] || '').replace(/\\/g, '').trim();
+      if (name.toLowerCase() === email) name = '';
+      if (email) out.push({ name: name, email: email });
+    }
+    return out;
+  }
+
+  // Search Gmail and return unique people: [{name, email, lastDate, count}], newest first
+  async function findGmailPeople(gmailQuery, opts) {
+    opts = opts || {};
+    if (!_gmailAccessToken) return [];
+    var list = await gmailFetch('https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=' + (opts.max || 15) + '&q=' + encodeURIComponent(gmailQuery));
+    if (!list || !list.messages) return [];
+
+    var headers = ['From', 'To', 'Cc', 'Date', 'List-Unsubscribe'].map(function (h) { return 'metadataHeaders=' + h; }).join('&');
+    var messages = [];
+    // Fetch in small batches to stay under Gmail's per-second quota
+    for (var i = 0; i < list.messages.length; i += 10) {
+      var batch = list.messages.slice(i, i + 10).map(function (msg) {
+        return gmailFetch('https://www.googleapis.com/gmail/v1/users/me/messages/' + msg.id + '?format=metadata&' + headers);
+      });
+      messages = messages.concat((await Promise.all(batch)).filter(Boolean));
+    }
+
+    var exclude = TEAM_EMAILS.concat([_gmailUserEmail || '']).map(function (e) { return e.toLowerCase(); });
+    var people = {};
+    messages.forEach(function (msg) {
+      var date = Number(msg.internalDate) || 0;
+      var isBulk = !!getHeader(msg, 'List-Unsubscribe');
+      var addrs = isBulk ? [] : parseAddressList(getHeader(msg, 'From'));
+      if (!opts.fromOnly) {
+        addrs = addrs.concat(parseAddressList(getHeader(msg, 'To')), parseAddressList(getHeader(msg, 'Cc')));
+      }
+      addrs.forEach(function (a) {
+        if (exclude.includes(a.email) || isAutomatedEmail(a.email)) return;
+        var p = people[a.email] || (people[a.email] = { name: '', email: a.email, lastDate: 0, count: 0 });
+        if (!p.name && a.name) p.name = a.name;
+        p.count++;
+        if (date > p.lastDate) p.lastDate = date;
+      });
+    });
+    return Object.keys(people).map(function (k) { return people[k]; })
+      .sort(function (a, b) { return b.lastDate - a.lastDate; });
+  }
+
+  function gmailPersonName(p) {
+    var name = (p.name || '').trim();
+    if (/,/.test(name)) {
+      // "Smith, Shane" -> "Shane Smith"
+      var parts = name.split(',');
+      name = (parts[1] + ' ' + parts[0]).trim();
+    }
+    if (!name) {
+      // shane.smith@… -> "Shane Smith"
+      name = p.email.split('@')[0].split(/[._-]+/).filter(Boolean)
+        .map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+    }
+    var words = name.split(/\s+/);
+    return { firstName: words[0] || '', lastName: words.slice(1).join(' ') };
+  }
+
+  function companyFromEmail(email) {
+    var domain = (email.split('@')[1] || '').toLowerCase();
+    if (!domain || FREE_MAIL_DOMAINS.includes(domain)) return '';
+    var parts = domain.split('.');
+    // acme.co.uk -> acme, mail.mudwtr.com -> mudwtr
+    var idx = parts.length >= 3 && parts[parts.length - 2].length <= 3 && parts[parts.length - 1].length === 2
+      ? parts.length - 3 : parts.length - 2;
+    var label = parts[Math.max(idx, 0)] || '';
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  function gmailPersonLabel(p) {
+    var n = gmailPersonName(p);
+    var company = companyFromEmail(p.email);
+    return (n.firstName + ' ' + n.lastName).trim() + (company ? ' (' + company + ')' : '');
+  }
+
+  function findContactByEmail(email) {
+    var e = (email || '').toLowerCase().trim();
+    if (!e) return null;
+    return Store.getContacts().find(function (c) { return (c.email || '').toLowerCase().trim() === e; }) || null;
+  }
+
+  // Create (or reuse) a CRM contact for a Gmail person; returns the contact id
+  function createContactFromGmailPerson(p) {
+    var existing = findContactByEmail(p.email);
+    if (existing) return existing.id;
+    var n = gmailPersonName(p);
+    var now = new Date().toISOString();
+    var contact = {
+      id: generateId(),
+      firstName: n.firstName,
+      lastName: n.lastName,
+      email: p.email,
+      company: companyFromEmail(p.email),
+      phone: '',
+      title: '',
+      notes: '',
+      createdAt: now,
+      updatedAt: now
+    };
+    var contacts = Store.getContacts();
+    contacts.push(contact);
+    Store.saveContacts(contacts);
+    Store.addActivity('<strong>' + escapeHtml((n.firstName + ' ' + n.lastName).trim()) + '</strong> was added as a contact from Gmail', '#10b981');
+    // Keep the deal modal's hidden contact select in sync (used by the chip edit button)
+    var select = document.getElementById('deal-contact');
+    if (select) {
+      var opt = document.createElement('option');
+      opt.value = contact.id;
+      opt.textContent = contactLabel(contact);
+      select.appendChild(opt);
+    }
+    return contact.id;
+  }
+
   async function fetchThreadsForContact(email) {
     if (!email || !_gmailAccessToken) return [];
     var q = encodeURIComponent('from:' + email + ' OR to:' + email);
@@ -1058,6 +1191,9 @@
 
   // ===== Contact search (deal modal) =====
   let _contactResultIndex = 0;
+  let _contactResultItems = [];
+  const _gmailSearchCache = new Map(); // query -> people[] (or 'pending')
+  let _gmailSearchTimer = null;
 
   function contactLabel(c) {
     return (c.firstName + ' ' + c.lastName).trim() + (c.company ? ' (' + c.company + ')' : '');
@@ -1073,50 +1209,115 @@
       .slice(0, 8);
   }
 
+  // One merged list: saved contacts + Gmail people, de-duplicated by email
+  function getMergedResults(query) {
+    const q = query.trim().toLowerCase();
+    const items = getContactMatches(query).map(c => ({ contact: c }));
+    const seenIds = new Set(items.map(i => i.contact.id));
+    const seenEmails = new Set(items.map(i => (i.contact.email || '').toLowerCase()).filter(Boolean));
+
+    const addPerson = (p) => {
+      if (seenEmails.has(p.email)) return;
+      seenEmails.add(p.email);
+      const existing = findContactByEmail(p.email);
+      if (existing) {
+        // Already a contact (found via Gmail): show the saved contact, unless it's on the deal already
+        if (_modalContactIds.includes(existing.id) || seenIds.has(existing.id)) return;
+        seenIds.add(existing.id);
+        items.push({ contact: existing });
+      } else {
+        items.push({ person: p });
+      }
+    };
+
+    const gmail = _gmailSearchCache.get(q);
+    if (Array.isArray(gmail)) {
+      gmail.filter(p => p.email.includes(q) || (p.name || '').toLowerCase().includes(q)).forEach(addPerson);
+    }
+    // A typed full email address can always be added directly
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q)) addPerson({ name: '', email: q });
+
+    return items.slice(0, 12);
+  }
+
   function renderContactResults() {
     const input = document.getElementById('deal-contact-search');
     const box = document.getElementById('deal-contact-results');
-    const matches = getContactMatches(input.value);
-    _contactResultIndex = Math.min(_contactResultIndex, Math.max(matches.length - 1, 0));
-    box.innerHTML = matches.length === 0
-      ? '<div class="contact-search-empty">No matching contacts. Use "+ New" to add one.</div>'
-      : matches.map((c, i) => `
-        <div class="contact-search-item${i === _contactResultIndex ? ' active' : ''}" data-contact-id="${c.id}">
-          <span class="contact-search-name">${escapeHtml(contactLabel(c))}</span>
-          ${c.email ? `<span class="contact-search-email">${escapeHtml(c.email)}</span>` : ''}
-        </div>`).join('');
+    const q = input.value.trim().toLowerCase();
+    const items = getMergedResults(input.value);
+    _contactResultItems = items;
+    _contactResultIndex = Math.min(_contactResultIndex, Math.max(items.length - 1, 0));
+    const searching = _gmailSearchCache.get(q) === 'pending';
+
+    const rows = items.map((item, i) => {
+      const label = item.contact ? contactLabel(item.contact) : gmailPersonLabel(item.person);
+      const email = item.contact ? item.contact.email : item.person.email;
+      return `
+        <div class="contact-search-item${i === _contactResultIndex ? ' active' : ''}" data-index="${i}">
+          <span class="contact-search-name">${escapeHtml(label)}</span>
+          ${email ? `<span class="contact-search-email">${escapeHtml(email)}</span>` : ''}
+        </div>`;
+    }).join('');
+
+    box.innerHTML = rows +
+      (searching ? '<div class="contact-search-empty">Searching Gmail…</div>' : '') +
+      (!rows && !searching ? '<div class="contact-search-empty">No matches. Type a full email address, or use "+ New".</div>' : '');
     box.style.display = '';
+  }
+
+  function scheduleGmailSearch() {
+    clearTimeout(_gmailSearchTimer);
+    const q = document.getElementById('deal-contact-search').value.trim().toLowerCase();
+    if (q.length < 2 || !_gmailAccessToken || _gmailSearchCache.has(q)) return;
+    _gmailSearchTimer = setTimeout(async () => {
+      _gmailSearchCache.set(q, 'pending');
+      renderContactResults();
+      let people = [];
+      try {
+        people = await findGmailPeople(q + ' -category:promotions -category:social', { max: 15 });
+      } catch (e) {
+        console.warn('Gmail contact search failed:', e.message);
+      }
+      _gmailSearchCache.set(q, people);
+      const input = document.getElementById('deal-contact-search');
+      if (document.activeElement === input && input.value.trim().toLowerCase() === q) renderContactResults();
+    }, 300);
   }
 
   function hideContactResults() {
     document.getElementById('deal-contact-results').style.display = 'none';
   }
 
-  function pickContactFromSearch(cid) {
-    if (!cid) return;
-    const select = document.getElementById('deal-contact');
-    select.value = cid;
-    select.dispatchEvent(new Event('change'));
+  function pickContactFromSearch(index) {
+    const item = _contactResultItems[index];
+    if (!item) return;
+    const cid = item.contact ? item.contact.id : createContactFromGmailPerson(item.person);
+    if (!_modalContactIds.includes(cid)) _modalContactIds.push(cid);
+    renderDealContactChips();
     document.getElementById('deal-contact-search').value = '';
+    document.getElementById('deal-contact').value = '';
+    document.getElementById('deal-contact-picker').style.display = 'none';
     hideContactResults();
+    resetDealNewContactFields();
+    if (!item.contact) renderContacts(document.getElementById('contact-search').value);
   }
 
   function initContactSearch() {
     const input = document.getElementById('deal-contact-search');
     const box = document.getElementById('deal-contact-results');
-    input.addEventListener('input', () => { _contactResultIndex = 0; renderContactResults(); });
+    input.addEventListener('input', () => { _contactResultIndex = 0; renderContactResults(); scheduleGmailSearch(); });
     input.addEventListener('focus', renderContactResults);
     input.addEventListener('blur', hideContactResults);
     input.addEventListener('keydown', (e) => {
-      const items = box.querySelectorAll('.contact-search-item');
+      const count = _contactResultItems.length;
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
-        if (!items.length) return;
-        _contactResultIndex = (_contactResultIndex + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        if (!count) return;
+        _contactResultIndex = (_contactResultIndex + (e.key === 'ArrowDown' ? 1 : -1) + count) % count;
         renderContactResults();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (items[_contactResultIndex]) pickContactFromSearch(items[_contactResultIndex].dataset.contactId);
+        pickContactFromSearch(_contactResultIndex);
       } else if (e.key === 'Escape') {
         e.stopPropagation();
         hideContactResults();
@@ -1126,7 +1327,7 @@
     box.addEventListener('mousedown', (e) => {
       e.preventDefault();
       const item = e.target.closest('.contact-search-item');
-      if (item) pickContactFromSearch(item.dataset.contactId);
+      if (item) pickContactFromSearch(Number(item.dataset.index));
     });
   }
 
@@ -1636,6 +1837,93 @@
   // ===== Contacts =====
   let selectedContactId = null;
 
+  // ===== Suggested from Gmail (contacts page) =====
+  const GMAIL_SUGGEST_TTL = 15 * 60 * 1000;
+  const _gmailSuggest = { people: [], loadedAt: 0, loading: false };
+
+  function isSuggestCollapsed() {
+    try { return localStorage.getItem('crm_gmail_suggest_collapsed') === '1'; } catch (e) { return false; }
+  }
+
+  async function loadGmailSuggestions(force) {
+    if (!_gmailAccessToken || _gmailSuggest.loading) return;
+    if (!force && Date.now() - _gmailSuggest.loadedAt < GMAIL_SUGGEST_TTL) return;
+    _gmailSuggest.loading = true;
+    renderGmailSuggestions();
+    try {
+      _gmailSuggest.people = await findGmailPeople(
+        'in:inbox newer_than:14d -category:promotions -category:social -category:updates -category:forums',
+        { max: 50, fromOnly: true }
+      );
+      _gmailSuggest.loadedAt = Date.now();
+    } catch (e) {
+      console.warn('Gmail suggestions failed:', e.message);
+    }
+    _gmailSuggest.loading = false;
+    renderGmailSuggestions();
+  }
+
+  function renderGmailSuggestions() {
+    const el = document.getElementById('gmail-suggestions');
+    if (!el) return;
+    const collapsed = isSuggestCollapsed();
+    const q = (document.getElementById('contact-search').value || '').trim().toLowerCase();
+    const people = _gmailSuggest.people
+      .filter(p => !findContactByEmail(p.email))
+      .filter(p => !q || p.email.includes(q) || gmailPersonLabel(p).toLowerCase().includes(q))
+      .slice(0, 10);
+
+    let body;
+    if (!_gmailAccessToken) {
+      body = '<div class="gmail-suggest-empty">Connect Gmail to see people who emailed you. <button type="button" class="gmail-suggest-connect">Connect</button></div>';
+    } else if (_gmailSuggest.loading && people.length === 0) {
+      body = '<div class="gmail-suggest-empty">Checking your inbox…</div>';
+    } else if (people.length === 0) {
+      body = '<div class="gmail-suggest-empty">No new people from the last 14 days.</div>';
+    } else {
+      body = people.map(p => `
+        <div class="gmail-suggest-item">
+          <div class="gmail-suggest-info">
+            <div class="gmail-suggest-name">${escapeHtml(gmailPersonLabel(p))}</div>
+            <div class="gmail-suggest-email">${escapeHtml(p.email)}</div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm gmail-suggest-add" data-email="${escapeHtml(p.email)}">+ Add</button>
+        </div>`).join('');
+    }
+
+    const count = _gmailAccessToken && people.length ? ` <span class="gmail-suggest-count">${people.length}</span>` : '';
+    el.innerHTML = `
+      <button type="button" class="gmail-suggest-header">
+        <span>Suggested from Gmail${count}</span>
+        <span class="gmail-suggest-chevron${collapsed ? '' : ' open'}">&#9662;</span>
+      </button>
+      ${collapsed ? '' : `<div class="gmail-suggest-body">${body}</div>`}`;
+  }
+
+  function initGmailSuggestions() {
+    const list = document.getElementById('contacts-list');
+    list.addEventListener('click', async (e) => {
+      if (e.target.closest('.gmail-suggest-header')) {
+        try { localStorage.setItem('crm_gmail_suggest_collapsed', isSuggestCollapsed() ? '0' : '1'); } catch (err) { /* ignore */ }
+        renderGmailSuggestions();
+        return;
+      }
+      if (e.target.closest('.gmail-suggest-connect')) {
+        await refreshGmailToken();
+        loadGmailSuggestions(true);
+        return;
+      }
+      const addBtn = e.target.closest('.gmail-suggest-add');
+      if (addBtn) {
+        const p = _gmailSuggest.people.find(x => x.email === addBtn.dataset.email);
+        if (!p) return;
+        const id = createContactFromGmailPerson(p);
+        renderContacts(document.getElementById('contact-search').value);
+        showContactDetail(id);
+      }
+    });
+  }
+
   function renderContacts(searchQuery) {
     const contacts = Store.getContacts();
     const list = document.getElementById('contacts-list');
@@ -1650,10 +1938,12 @@
       );
     }
 
-    list.innerHTML = '';
+    list.innerHTML = '<div class="gmail-suggestions" id="gmail-suggestions"></div>';
+    renderGmailSuggestions();
+    loadGmailSuggestions();
 
     if (filtered.length === 0) {
-      list.innerHTML = '<div class="empty-state"><p>No contacts found</p></div>';
+      list.insertAdjacentHTML('beforeend', '<div class="empty-state"><p>No contacts found</p></div>');
       return;
     }
 
@@ -1965,6 +2255,7 @@
     });
     document.getElementById('deal-contact-add-btn').addEventListener('click', showContactPicker);
     initContactSearch();
+    initGmailSuggestions();
     document.getElementById('deal-add-comment').addEventListener('click', addDealComment);
     document.getElementById('deal-comment-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
