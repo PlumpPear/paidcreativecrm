@@ -178,6 +178,13 @@
     return resp.json();
   }
 
+  // Gmail search link for every email to/from this address
+  function gmailSearchUrl(email) {
+    var q = encodeURIComponent('from:' + email + ' OR to:' + email);
+    var acct = _gmailUserEmail ? '?authuser=' + encodeURIComponent(_gmailUserEmail) : '';
+    return 'https://mail.google.com/mail/u/0/' + acct + '#search/' + q;
+  }
+
   async function fetchThreadsForContact(email) {
     if (!email || !_gmailAccessToken) return [];
     var q = encodeURIComponent('from:' + email + ' OR to:' + email);
@@ -1006,6 +1013,7 @@
       const label = (c.firstName + ' ' + c.lastName).trim() + (c.company ? ' (' + c.company + ')' : '');
       return `<span class="deal-contact-chip" data-contact-id="${cid}">
         <span class="chip-name">${escapeHtml(label)}</span>
+        ${c.email ? `<a class="chip-gmail" href="${escapeHtml(gmailSearchUrl(c.email))}" target="_blank" rel="noopener" title="View emails in Gmail"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></a>` : ''}
         <button type="button" class="chip-edit" title="Edit contact">&hellip;</button>
         <button type="button" class="chip-remove" title="Remove">&times;</button>
       </span>`;
@@ -1612,7 +1620,7 @@
       <div class="contact-info-grid">
         <div class="info-item">
           <span class="info-label">Email</span>
-          <span class="info-value">${escapeHtml(contact.email || '—')}</span>
+          <span class="info-value">${escapeHtml(contact.email || '—')}${contact.email ? ` <a class="gmail-link" href="${escapeHtml(gmailSearchUrl(contact.email))}" target="_blank" rel="noopener">View in Gmail &#8599;</a>` : ''}</span>
         </div>
         <div class="info-item">
           <span class="info-label">Phone</span>

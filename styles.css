@@ -973,6 +973,16 @@ body {
   color: var(--text-primary);
 }
 
+.gmail-link {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.gmail-link:hover { text-decoration: underline; }
+
 .contact-section {
   margin-bottom: 24px;
 }
@@ -1354,6 +1364,13 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   padding: 0 4px;
 }
 .deal-contact-chip .chip-edit:hover { color: var(--accent); }
+.deal-contact-chip .chip-gmail {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+.deal-contact-chip .chip-gmail:hover { color: var(--accent); }
 .deal-contact-chip .chip-remove:hover { color: var(--danger); }
 
 .deal-contact-picker {
