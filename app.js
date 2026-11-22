@@ -31,10 +31,9 @@
 
   // ===== Auth Gate (Google Sign-In) =====
   // Add team member emails here to restrict access
+  // Only accounts on this email domain may sign in.
   // Keep in sync with firestore.rules, which enforces this on the server.
-  const ALLOWED_EMAILS = [
-    'madison@paidcreative.com',
-  ];
+  const ALLOWED_EMAIL_DOMAIN = '@paidcreative.com';
 
   // Team members — excluded from Gmail contact suggestions
   const TEAM_EMAILS = ['sam@paidcreative.com', 'madison@paidcreative.com'];
@@ -51,7 +50,7 @@
     firebase.auth().onAuthStateChanged(function (user) {
       if (user) {
         // Check whitelist
-        if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(user.email.toLowerCase())) {
+        if (!(user.email || '').toLowerCase().endsWith(ALLOWED_EMAIL_DOMAIN)) {
           errorEl.textContent = 'Access denied. Your email is not authorized.';
           firebase.auth().signOut();
           return;

@@ -2,13 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Only approved accounts may access CRM data:
-    //  - Madison, via Google sign-in (verified email)
+    //  - anyone with a verified @paidcreative.com email (Google sign-in)
     //  - the read-only Claude bot used by /api/crm (claude-crm-bot@paidcreative.com),
-    //    matched by its fixed Firebase user ID and limited to reading
-    function isMadison() {
+    //    matched by its fixed Firebase user ID and limited to reading.
+    //    Its email is unverified, so the domain rule does not give it write access.
+    function isTeam() {
       return request.auth != null
-        && request.auth.token.email == 'madison@paidcreative.com'
-        && request.auth.token.email_verified == true;
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@paidcreative[.]com$');
     }
 
     function isClaudeBot() {
@@ -17,8 +18,8 @@ service cloud.firestore {
     }
 
     match /crm/{document} {
-      allow read: if isMadison() || isClaudeBot();
-      allow write: if isMadison();
+      allow read: if isTeam() || isClaudeBot();
+      allow write: if isTeam();
     }
   }
 }
