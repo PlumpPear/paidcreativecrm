@@ -91,6 +91,7 @@ function summarize(full) {
   // Defaults mirror STAGE_LABELS in app.js; custom names in settings override them.
   const labels = {
     discovery: 'Discovery',
+    icebox: 'Icebox',
     qualification: 'Qualification',
     proposal: 'Proposal',
     negotiation: 'Negotiation',
@@ -109,7 +110,7 @@ function summarize(full) {
 
   // Pre-seed in board order so the pipeline reads left-to-right.
   const stages = {};
-  for (const key of ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost']) {
+  for (const key of ['discovery', 'icebox', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost']) {
     stages[labels[key]] = { count: 0, totalValue: 0, deals: [] };
   }
   for (const d of full.deals) {
