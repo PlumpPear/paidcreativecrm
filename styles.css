@@ -973,6 +973,16 @@ body {
   color: var(--text-primary);
 }
 
+.gmail-link {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.gmail-link:hover { text-decoration: underline; }
+
 .contact-section {
   margin-bottom: 24px;
 }
@@ -1354,6 +1364,13 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   padding: 0 4px;
 }
 .deal-contact-chip .chip-edit:hover { color: var(--accent); }
+.deal-contact-chip .chip-gmail {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+.deal-contact-chip .chip-gmail:hover { color: var(--accent); }
 .deal-contact-chip .chip-remove:hover { color: var(--danger); }
 
 .deal-contact-picker {
@@ -1365,6 +1382,46 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
 
 .deal-contact-picker select {
   flex: 1;
+}
+
+.contact-search {
+  position: relative;
+  flex: 1;
+}
+.contact-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.contact-search-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.contact-search-item.active,
+.contact-search-item:hover { background: rgba(99,102,241,0.15); }
+.contact-search-email {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.contact-search-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .deal-new-contact-fields {
@@ -1425,6 +1482,7 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
 
 /* ===== Stage Badge Colors ===== */
 .stage-discovery { background: rgba(99,102,241,0.15); color: #818cf8; }
+.stage-icebox { background: rgba(56,189,248,0.15); color: #7dd3fc; }
 .stage-qualification { background: rgba(139,92,246,0.15); color: #a78bfa; }
 .stage-proposal { background: rgba(236,72,153,0.15); color: #f472b6; }
 .stage-negotiation { background: rgba(245,158,11,0.15); color: #fbbf24; }
@@ -1524,55 +1582,6 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.btn-icon:hover {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
-}
-
-.btn-icon.spinning svg {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ===== Deal Card Email Badge ===== */
-.deal-card-email-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-}
-
-.deal-card-email-badge.unanswered {
-  color: #f87171;
-}
-
-.deal-card-email-badge.unanswered svg {
-  stroke: #f87171;
 }
 
 /* ===== Email Section in Deal Modal ===== */
@@ -1768,4 +1777,78 @@ input[type="date"]#deal-follow-up::-webkit-calendar-picker-indicator {
   .contacts-layout {
     grid-template-columns: 1fr;
   }
+}
+
+/* ===== Suggested from Gmail (contacts page) ===== */
+.gmail-suggestions {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+.gmail-suggest-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+}
+.gmail-suggest-header:hover { color: var(--text-primary); }
+.gmail-suggest-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(99,102,241,0.2);
+  color: #a5b4fc;
+  font-size: 11px;
+}
+.gmail-suggest-chevron { transition: transform 0.15s; transform: rotate(-90deg); }
+.gmail-suggest-chevron.open { transform: none; }
+.gmail-suggest-body { padding: 0 8px 8px; }
+.gmail-suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--radius);
+}
+.gmail-suggest-item:hover { background: rgba(99,102,241,0.08); }
+.gmail-suggest-info { min-width: 0; }
+.gmail-suggest-name {
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gmail-suggest-email {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gmail-suggest-add { flex-shrink: 0; }
+.gmail-suggest-empty {
+  padding: 4px 8px 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.gmail-suggest-connect {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
 }
