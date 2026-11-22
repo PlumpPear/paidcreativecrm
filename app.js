@@ -31,10 +31,9 @@
 
   // ===== Auth Gate (Google Sign-In) =====
   // Add team member emails here to restrict access
+  // Keep in sync with firestore.rules, which enforces this on the server.
   const ALLOWED_EMAILS = [
-    // e.g. 'sam@paidcreative.com',
-    // e.g. 'madison@paidcreative.com',
-    // Leave empty to allow any Google account
+    'madison@paidcreative.com',
   ];
 
   // Team members — excluded from Gmail contact suggestions
