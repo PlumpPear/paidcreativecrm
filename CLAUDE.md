@@ -15,6 +15,10 @@ To use it from Claude with the Vercel MCP connected:
 2. Fetch `https://<production domain>/api/crm?key=<CRM_READ_KEY>`
    (e.g. with `web_fetch_vercel_url`).
 
+By default it returns a compact summary (deals grouped by stage with contacts inline,
+MRR, recent activity). Add `&view=full` for all raw data, or `&view=deals|contacts|activities|settings`
+for one section.
+
 The function signs in to Firebase as the bot user in `CRM_BOT_EMAIL` / `CRM_BOT_PASSWORD`
 (Vercel env vars) and reads Firestore over REST. Deal `stage` values are internal keys;
 map them to display names with `settings.stageLabels`.

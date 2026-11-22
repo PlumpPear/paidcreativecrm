@@ -83,6 +83,68 @@ async function readCrmCollection(idToken) {
   return docs;
 }
 
+const stripHtml = (s) => String(s || '').replace(/<[^>]*>/g, '');
+
+// Compact view sized for an AI to read in one go: deals grouped by stage with
+// contact names inline, recent activity as plain text, no internal ids/timestamps.
+function summarize(full) {
+  // Defaults mirror STAGE_LABELS in app.js; custom names in settings override them.
+  const labels = {
+    discovery: 'Discovery',
+    qualification: 'Qualification',
+    proposal: 'Proposal',
+    negotiation: 'Negotiation',
+    closed_won: 'Closed Won',
+    closed_lost: 'Lost/Inactive',
+    ...(full.settings.stageLabels || {}),
+  };
+  const contactsById = {};
+  for (const c of full.contacts) contactsById[c.id] = c;
+  const contactLabel = (id) => {
+    const c = contactsById[id];
+    if (!c) return null;
+    const name = [c.firstName, c.lastName].filter(Boolean).join(' ');
+    return [name, c.title, c.email].filter(Boolean).join(' | ');
+  };
+
+  // Pre-seed in board order so the pipeline reads left-to-right.
+  const stages = {};
+  for (const key of ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost']) {
+    stages[labels[key]] = { count: 0, totalValue: 0, deals: [] };
+  }
+  for (const d of full.deals) {
+    const stage = labels[d.stage] || d.stage || 'Unknown';
+    const ids = d.contactIds && d.contactIds.length ? d.contactIds : d.contactId ? [d.contactId] : [];
+    const deal = {
+      name: d.name,
+      value: d.value,
+      owner: d.owner,
+      type: d.type || undefined,
+      followUpDate: d.followUpDate || undefined,
+      contacts: ids.map(contactLabel).filter(Boolean),
+      notes: d.notes || undefined,
+      latestComment: Array.isArray(d.comments) && d.comments.length
+        ? stripHtml(d.comments[d.comments.length - 1].text || d.comments[d.comments.length - 1])
+        : undefined,
+      updatedAt: d.updatedAt ? String(d.updatedAt).slice(0, 10) : undefined,
+    };
+    (stages[stage] = stages[stage] || { count: 0, totalValue: 0, deals: [] });
+    stages[stage].count += 1;
+    stages[stage].totalValue += Number(d.value) || 0;
+    stages[stage].deals.push(deal);
+  }
+
+  return {
+    fetchedAt: full.fetchedAt,
+    note: 'Summary view. Use ?view=full, or view=deals|contacts|activities|settings, for raw data.',
+    totals: { deals: full.deals.length, contacts: full.contacts.length },
+    mrrGoal: full.settings.mrrGoal,
+    latestMrr: full.settings.mrrHistory.length ? full.settings.mrrHistory[full.settings.mrrHistory.length - 1] : null,
+    pipeline: stages,
+    recentActivity: full.activities.slice(0, 20).map((a) => `${String(a.time).slice(0, 10)}: ${stripHtml(a.text)}`),
+  };
+}
+
 async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Robots-Tag', 'noindex');
@@ -107,7 +169,7 @@ async function handler(req, res) {
   try {
     const docs = await readCrmCollection(await signInBot());
     const settings = docs.settings || {};
-    res.status(200).json({
+    const full = {
       fetchedAt: new Date().toISOString(),
       deals: (docs.deals && docs.deals.items) || [],
       contacts: (docs.contacts && docs.contacts.items) || [],
@@ -118,7 +180,16 @@ async function handler(req, res) {
         mrrGoal: settings.mrrGoal != null ? settings.mrrGoal : null,
         mrrHistory: settings.mrrHistory || [],
       },
-    });
+    };
+
+    const view = req.query.view || 'summary';
+    if (view === 'full') {
+      res.status(200).json(full);
+    } else if (['deals', 'contacts', 'activities', 'settings'].includes(view)) {
+      res.status(200).json({ fetchedAt: full.fetchedAt, [view]: full[view] });
+    } else {
+      res.status(200).json(summarize(full));
+    }
   } catch (err) {
     console.error('crm api error', err);
     res.status(500).json({ error: 'Failed to read CRM data' });
