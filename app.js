@@ -601,6 +601,27 @@
     return '$' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
+  // Average price per concept: deal value / number of concepts (null if no concepts)
+  function getPricePerConcept(value, concepts) {
+    const v = parseFloat(value) || 0;
+    const c = parseFloat(concepts) || 0;
+    return c > 0 ? v / c : null;
+  }
+
+  function updatePricePerConceptField() {
+    const ppc = getPricePerConcept(
+      document.getElementById('deal-value').value,
+      document.getElementById('deal-concepts').value
+    );
+    document.getElementById('deal-price-per-concept').value = ppc === null ? '' : formatCurrency(ppc);
+  }
+
+  function updateDealTypeLabels(type) {
+    const isOneTime = type === 'one_time';
+    document.getElementById('deal-value-label').textContent = isOneTime ? 'Project Value ($)' : 'Monthly Value ($)';
+    document.getElementById('deal-concepts-label').textContent = isOneTime ? 'Number of Concepts' : 'Concepts per Month';
+  }
+
   function getInitials(firstName, lastName) {
     return ((firstName || '')[0] || '') + ((lastName || '')[0] || '');
   }
@@ -695,6 +716,9 @@
         const isOneTime = deal.type === 'one_time';
         const valueLabel = isOneTime ? formatCurrency(deal.value) : formatCurrency(deal.value) + '/mo';
         const typeBadge = isOneTime ? '<span class="deal-type-badge one-time">One-Time</span>' : '';
+        const ppc = getPricePerConcept(deal.value, deal.concepts);
+        const perConceptHtml = ppc === null ? ''
+          : `<div class="deal-card-per-concept">${deal.concepts} concept${deal.concepts === 1 ? '' : 's'}${isOneTime ? '' : '/mo'} · ${formatCurrency(ppc)}/concept</div>`;
         const ownerClass = deal.owner === 'Madison' ? ' madison' : '';
         const ownerHtml = deal.owner
           ? `<span class="deal-card-owner${ownerClass}" title="${escapeHtml(deal.owner)}">${escapeHtml(deal.owner[0])}</span>`
@@ -752,6 +776,7 @@
           <div class="deal-card-footer">
             <span class="deal-card-value${isOneTime ? ' one-time' : ''}">${valueLabel}</span>${typeBadge}
           </div>
+          ${perConceptHtml}
           ${followUpHtml}
           ${emailBadgeHtml}
         `;
@@ -1223,6 +1248,7 @@
       document.getElementById('deal-id').value = deal.id;
       document.getElementById('deal-name').value = deal.name;
       document.getElementById('deal-value').value = deal.value;
+      document.getElementById('deal-concepts').value = deal.concepts || '';
       document.getElementById('deal-stage').value = deal.stage;
       _modalContactIds = getDealContactIds(deal);
       deleteBtn.style.display = 'inline-flex';
@@ -1233,7 +1259,7 @@
       document.querySelectorAll('.deal-type-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.type === dealType);
       });
-      document.getElementById('deal-value-label').textContent = dealType === 'one_time' ? 'Project Value ($)' : 'Monthly Value ($)';
+      updateDealTypeLabels(dealType);
       document.getElementById('deal-owner').value = deal.owner || '';
       document.getElementById('deal-follow-up').value = deal.followUpDate || '';
 
@@ -1250,12 +1276,13 @@
       document.querySelectorAll('.deal-type-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.type === 'recurring');
       });
-      document.getElementById('deal-value-label').textContent = 'Monthly Value ($)';
+      updateDealTypeLabels('recurring');
 
       _modalContactIds = [];
       _modalComments = [];
     }
 
+    updatePricePerConceptField();
     renderDealContactChips();
     document.getElementById('deal-contact-picker').style.display = _modalContactIds.length === 0 ? '' : 'none';
     document.getElementById('deal-contact').value = '';
@@ -1496,6 +1523,7 @@
     const dealData = {
       name: document.getElementById('deal-name').value.trim(),
       value: parseFloat(document.getElementById('deal-value').value) || 0,
+      concepts: parseInt(document.getElementById('deal-concepts').value, 10) || 0,
       type: document.getElementById('deal-type').value,
       stage: document.getElementById('deal-stage').value,
       owner: document.getElementById('deal-owner').value,
@@ -1886,9 +1914,13 @@
         btn.classList.add('active');
         const type = btn.dataset.type;
         document.getElementById('deal-type').value = type;
-        document.getElementById('deal-value-label').textContent = type === 'one_time' ? 'Project Value ($)' : 'Monthly Value ($)';
+        updateDealTypeLabels(type);
       });
     });
+
+    // Live-update average price per concept
+    document.getElementById('deal-value').addEventListener('input', updatePricePerConceptField);
+    document.getElementById('deal-concepts').addEventListener('input', updatePricePerConceptField);
 
     // Contact modal (from Contacts page and Pipeline page)
     document.getElementById('btn-add-contact').addEventListener('click', () => openContactModal(null));

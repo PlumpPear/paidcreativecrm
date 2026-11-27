@@ -237,6 +237,16 @@
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label for="deal-concepts" id="deal-concepts-label">Concepts per Month</label>
+            <input type="number" id="deal-concepts" min="0" step="1" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label for="deal-price-per-concept">Avg Price per Concept</label>
+            <input type="text" id="deal-price-per-concept" class="calculated-field" readonly tabindex="-1" placeholder="—">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label for="deal-owner">Owner</label>
             <select id="deal-owner">
               <option value="">-- Unassigned --</option>

@@ -1145,6 +1145,20 @@ form {
   background-size: 12px;
 }
 
+.form-group input.calculated-field {
+  background: transparent;
+  border-style: dashed;
+  color: var(--accent-green);
+  font-weight: 600;
+  cursor: default;
+}
+
+.deal-card-per-concept {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
 /* Follow Up Date - calendar icon on the left, white */
 input[type="date"]#deal-follow-up {
   position: relative;
